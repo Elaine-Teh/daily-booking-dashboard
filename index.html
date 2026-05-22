@@ -330,7 +330,10 @@ function buildMultiSelect(id, items, onChange) {
 
   function updateTrigger() {
     var count = selected.size, total = currentItems.length;
-    var txt = count === total ? 'All ' + id.toUpperCase() + 's' : count + ' ' + id.toUpperCase() + ' selected';
+    var txt;
+    if (total === 0) txt = '0 available';
+    else if (count === total) txt = 'All ' + id.toUpperCase() + 's';
+    else txt = count + ' ' + id.toUpperCase() + ' selected';
     trigger.querySelector('.ms-text').textContent = txt;
     if (trigger.querySelector('.ms-badge')) trigger.querySelector('.ms-badge').remove();
     if (count > 0 && count < total) {
@@ -568,7 +571,11 @@ function buildSummary(data) {
     });
   });
 
-  document.getElementById('summaryTable').querySelector('tbody').innerHTML = tbody;
+  if (totalRows === 0) {
+    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
+  } else {
+    document.getElementById('summaryTable').querySelector('tbody').innerHTML = tbody;
+  }
   document.getElementById('summaryCount').textContent = totalRows + ' groups';
 }
 
