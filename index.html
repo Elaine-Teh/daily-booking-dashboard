@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Daily Booking Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Chart.js loaded dynamically to avoid blocking page load -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#1a1a2e}
@@ -133,19 +133,44 @@ var laneExpand = new Set();
 
 function escapeHtml(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
+// === Load Chart.js dynamically ===
+var ChartLib = null;
+function loadChartJS(cb) {
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+  s.onload = function(){ ChartLib = window.Chart; cb(true); };
+  s.onerror = function(){ console.warn('Chart.js failed to load, charts disabled'); cb(false); };
+  document.head.appendChild(s);
+}
+
 // === Load data ===
 window.addEventListener('DOMContentLoaded',function(){
-  fetch('db_data.json?v=3').then(r=>r.json()).then(function(d){
+  // Timeout: if data takes >20s, show error
+  var timeout = setTimeout(function(){
+    document.getElementById('loadingArea').innerHTML = '<div style="color:#e74c3c"><b>Timeout</b><br>Data taking too long to load. Please check your internet connection and try refreshing.</div>';
+  }, 20000);
+
+  // Load Chart.js in parallel
+  loadChartJS(function(chartOK){});
+
+  fetch('db_data.json?v=4').then(r=>{
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(d){
+    clearTimeout(timeout);
+    if(!d || !d.d) throw new Error('Invalid data format');
     DATA = d.d;
-    META = d.m;
-    document.getElementById('headerSub').textContent = META.n.toLocaleString() + ' records, ' + META.ls.length + ' lanes';
-    document.getElementById('headerGen').textContent = 'Generated: ' + META.g.slice(0,10);
+    META = d.m || {};
+    document.getElementById('headerSub').textContent = (META.n||0).toLocaleString() + ' records, ' + (META.ls||[]).length + ' lanes';
+    document.getElementById('headerGen').textContent = 'Generated: ' + (META.g||'unknown').slice(0,10);
     initFilters();
     document.getElementById('loadingArea').style.display='none';
     document.getElementById('dashboardContent').style.display='block';
     applyFilters();
   }).catch(function(e){
-    document.getElementById('loadingArea').innerHTML='<div style="color:#e74c3c">Failed to load data: ' + e.message + '</div>';
+    clearTimeout(timeout);
+    document.getElementById('loadingArea').innerHTML = '<div style="color:#e74c3c"><b>Load Failed</b><br>' + e.message + '<br><br><small>Try refreshing or check browser console (F12) for details.</small></div>';
+    console.error('Dashboard load error:', e);
   });
 });
 
@@ -211,6 +236,7 @@ function resetFilters(){
 
 // === Filter & render ===
 function applyFilters(){
+  if(!DATA) return;
   filtered = DATA.filter(function(r){
     if(selectedLanes.size>0 && !selectedLanes.has(r.l)) return false;
     if(selectedCuls.size>0 && !selectedCuls.has(r.c)) return false;
@@ -290,6 +316,8 @@ function toggleLane(lane){
 // === Charts ===
 var chartInstances = {};
 function updateCharts(){
+  if(!ChartLib) return; // Skip if Chart.js not loaded
+  try{
   // POL chart
   var polMap={};
   filtered.forEach(function(r){var k=r.p;polMap[k]=(polMap[k]||0)+r.t});
@@ -309,7 +337,8 @@ function updateCharts(){
   filtered.forEach(function(r){var k=r.d;delWMap[k]=(delWMap[k]||0)+(r.w||0)});
   var delWSorted=Object.entries(delWMap).sort(function(a,b){return b[1]-a[1]}).slice(0,15);
   if(chartInstances.weight) chartInstances.weight.destroy();
-  chartInstances.weight = new Chart(document.getElementById('chartWeight'),{type:'bar',data:{labels:delWSorted.map(function(e){return e[0]}),datasets:[{label:'Weight',data:delWSorted.map(function(e){return e[1]}),backgroundColor:'#16a085'}]},options:{responsive:true,plugins:{legend:{display:false}}}});
+  chartInstances.weight = new ChartLib(document.getElementById('chartWeight'),{type:'bar',data:{labels:delWSorted.map(function(e){return e[0]}),datasets:[{label:'Weight',data:delWSorted.map(function(e){return e[1]}),backgroundColor:'#16a085'}]},options:{responsive:true,plugins:{legend:{display:false}}}});
+  }catch(e){ console.warn('Chart render error:', e); }
 }
 
 // === Detail table ===
