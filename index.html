@@ -255,7 +255,8 @@ Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-s
 Chart.defaults.font.size = 11;
 
 var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST;
-var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP;
+var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP, LANE_ETD_MAP;
+var GLOBAL_ETD_MIN, GLOBAL_ETD_MAX;
 var msLane, msPol, msDel, msCul;
 
 // ============ DATA LOADING ============
@@ -456,11 +457,35 @@ function cascadeFilters() {
 }
 
 function onLaneChange(selectedLanes) {
+  // Adjust ETD range to selected lane(s) data range
+  var fromEl = document.getElementById('etdFrom');
+  var toEl = document.getElementById('etdTo');
+  if (selectedLanes.size === 0 || selectedLanes.size === LANE_LIST.length) {
+    // All lanes — restore full ETD range
+    fromEl.min = GLOBAL_ETD_MIN; fromEl.max = GLOBAL_ETD_MAX;
+    toEl.min = GLOBAL_ETD_MIN; toEl.max = GLOBAL_ETD_MAX;
+  } else {
+    // Specific lane(s) — narrow to their ETD range
+    var lanes = Array.from(selectedLanes);
+    var laneMin = '', laneMax = '';
+    lanes.forEach(function(lane) {
+      var m = LANE_ETD_MAP[lane];
+      if (m) {
+        if (!laneMin || m.min < laneMin) laneMin = m.min;
+        if (!laneMax || m.max > laneMax) laneMax = m.max;
+      }
+    });
+    if (laneMin && laneMax) {
+      fromEl.min = laneMin; fromEl.max = laneMax;
+      toEl.min = laneMin; toEl.max = laneMax;
+    }
+  }
   cascadeFilters();
   refreshAll();
 }
 
 function initETDRange(min, max) {
+  GLOBAL_ETD_MIN = min; GLOBAL_ETD_MAX = max;
   var fromEl = document.getElementById('etdFrom');
   var toEl = document.getElementById('etdTo');
   fromEl.min = min; fromEl.max = max;
@@ -744,8 +769,11 @@ document.getElementById('resetAll').onclick = function() {
   msCul.updateItems(CUL_LIST);
   msPol.updateItems(POL_LIST);
   msDel.updateItems(DEL_LIST);
-  document.getElementById('etdFrom').value = '';
-  document.getElementById('etdTo').value = '';
+  var fromEl = document.getElementById('etdFrom');
+  var toEl = document.getElementById('etdTo');
+  fromEl.value = ''; toEl.value = '';
+  fromEl.min = GLOBAL_ETD_MIN; fromEl.max = GLOBAL_ETD_MAX;
+  toEl.min = GLOBAL_ETD_MIN; toEl.max = GLOBAL_ETD_MAX;
   refreshAll();
 };
 document.getElementById('btnAddNote').onclick = addNoteForSelected;
