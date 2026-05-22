@@ -439,7 +439,7 @@ function buildSummary(data) {
     tbody += '</tr>';
 
     culCodes.forEach(function(ck) {
-      var combos = Object.values(groups[lane][ck]);
+      var combos = Object.values(groups[lane][ck]).sort(function(a,b){ return a.pol.localeCompare(b.pol); });
       var culBooking = combos.reduce(function(s,v){return s+v.booking_sum},0);
       var culWeight = combos.reduce(function(s,v){return s+v.weight_sum},0);
       var culFT20 = combos.reduce(function(s,v){return s+v.ft20_sum},0);
