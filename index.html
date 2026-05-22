@@ -796,9 +796,9 @@ function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&l
 document.getElementById('detailSearch').oninput = function() { updateDetail(getFilteredData()); };
 document.getElementById('resetAll').onclick = function() {
   msLane.setAll();
-  msCul.updateItems(CUL_LIST);
-  msPol.updateItems(POL_LIST);
-  msDel.updateItems(DEL_LIST);
+  msCul.setAll();
+  msPol.setAll();
+  msDel.setAll();
   var fromEl = document.getElementById('etdFrom');
   var toEl = document.getElementById('etdTo');
   fromEl.value = ''; toEl.value = '';
