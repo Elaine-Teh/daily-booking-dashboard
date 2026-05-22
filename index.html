@@ -41,6 +41,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .filter-clear{font-size:11px;color:#e74c3c;cursor:pointer;text-decoration:underline;white-space:nowrap}
 .filter-clear:hover{color:#c0392b}
 
+/* ETD Date Range Filter */
+.etd-filter{display:flex;align-items:center;gap:6px;background:#f5f6fa;border:1px solid #ddd;border-radius:6px;padding:6px 10px}
+.etd-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+.etd-filter input[type=date]{border:1px solid #ddd;border-radius:4px;padding:4px 8px;font-size:13px;outline:none;background:#fff;cursor:pointer}
+.etd-filter input[type=date]:focus{border-color:#0f3460}
+.etd-filter .etd-sep{color:#999;font-size:13px}
+
 /* KPI Cards */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:14px}
 .kpi-card{background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.08);text-align:center}
@@ -172,6 +179,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         </div>
       </div>
     </div>
+    <div class="etd-filter">
+      <label>ETD</label>
+      <input type="date" id="etdFrom" title="ETD From">
+      <span class="etd-sep">~</span>
+      <input type="date" id="etdTo" title="ETD To">
+    </div>
     <span class="filter-clear" id="resetAll">Reset All</span>
   </div>
 
@@ -282,6 +295,7 @@ var msLane, msPol, msDel, msCul;
       document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
 
       initFilters();
+      initETDRange(payload.etd_min, payload.etd_max);
       refreshAll();
     })
     .catch(function(err) {
@@ -365,8 +379,16 @@ function getFilteredData() {
   var polSel = msPol.getSelected();
   var delSel = msDel.getSelected();
   var culSel = msCul.getSelected();
+  var etdFrom = document.getElementById('etdFrom').value;
+  var etdTo = document.getElementById('etdTo').value;
   return ALL_DATA.filter(function(r) {
-    return laneSel.has(r.lane) && polSel.has(r.pol) && delSel.has(r.del_port) && culSel.has(r.cul_code);
+    if (!laneSel.has(r.lane)) return false;
+    if (!polSel.has(r.pol)) return false;
+    if (!delSel.has(r.del_port)) return false;
+    if (!culSel.has(r.cul_code)) return false;
+    if (etdFrom && r.etd && r.etd < etdFrom) return false;
+    if (etdTo && r.etd && r.etd > etdTo) return false;
+    return true;
   });
 }
 
@@ -376,6 +398,15 @@ function initFilters() {
   msPol = buildMultiSelect('Pol', POL_LIST, refreshAll);
   msDel = buildMultiSelect('Del', DEL_LIST, refreshAll);
   msCul = buildMultiSelect('Cul', CUL_LIST, refreshAll);
+}
+
+function initETDRange(min, max) {
+  var fromEl = document.getElementById('etdFrom');
+  var toEl = document.getElementById('etdTo');
+  fromEl.min = min; fromEl.max = max;
+  toEl.min = min; toEl.max = max;
+  fromEl.onchange = refreshAll;
+  toEl.onchange = refreshAll;
 }
 
 // ============ KPI CARDS ============
@@ -645,7 +676,10 @@ function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&l
 
 document.getElementById('detailSearch').oninput = function() { updateDetail(getFilteredData()); };
 document.getElementById('resetAll').onclick = function() {
-  msLane.setAll(); msPol.setAll(); msDel.setAll(); msCul.setAll(); refreshAll();
+  msLane.setAll(); msPol.setAll(); msDel.setAll(); msCul.setAll();
+  document.getElementById('etdFrom').value = '';
+  document.getElementById('etdTo').value = '';
+  refreshAll();
 };
 document.getElementById('btnAddNote').onclick = addNoteForSelected;
 document.getElementById('btnClearNotes').onclick = function() {
