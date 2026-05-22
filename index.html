@@ -469,7 +469,7 @@ function cascadeFilters() {
     if (etdTo && r.etd > etdTo) return;
     if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
     if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
-    if (!delSet[r.del]) { delSet[r.del] = true; delPool.push(r.del); }
+    if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
   });
   culPool.sort(); polPool.sort(); delPool.sort();
 
