@@ -197,6 +197,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="kpi-card"><div class="kpi-value" id="kpiBooking">0</div><div class="kpi-label">Booking Count</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpiWeight">0</div><div class="kpi-label">Container Weight</div></div>
   </div>
+  <div id="debugPanel" style="display:none;background:#fff3cd;color:#856404;padding:8px 12px;border-radius:6px;margin:8px 0;font-size:12px;font-family:monospace;"></div>
 
   <!-- SUMMARY TABLE -->
   <div class="summary-section">
@@ -431,6 +432,13 @@ function getFilteredData() {
   console.log('After etd filter:', etdPass);
   console.log('Final result:', totalPass);
   console.log('====================');
+
+  // Inline debug panel update
+  var debugEl = document.getElementById('debugPanel');
+  if (debugEl) {
+    debugEl.innerHTML = '<b>Debug:</b> lane=' + lanePass + ' pol=' + polPass + ' del=' + delPass + ' cul=' + culPass + ' etd=' + etdPass + ' final=' + totalPass;
+    debugEl.style.display = totalPass === 0 ? 'block' : 'none';
+  }
 
   return result;
 }
