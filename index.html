@@ -418,25 +418,42 @@ function initFilters() {
 }
 
 // ============ CASCADING FILTER ============
-function onLaneChange(selectedLanes) {
-  if (selectedLanes.size === LANE_LIST.length) {
-    // All lanes selected — show all options
+// Unified cascade: update CUL/POL/DEL pools based on current Lane + ETD selection
+function cascadeFilters() {
+  var laneSel = msLane.getSelected();
+  var etdFrom = document.getElementById('etdFrom').value;
+  var etdTo = document.getElementById('etdTo').value;
+  var allLanes = (laneSel.size === 0 || laneSel.size === LANE_LIST.length);
+  var allETD = (!etdFrom && !etdTo);
+
+  // If both Lane and ETD are "all", restore full lists
+  if (allLanes && allETD) {
     msCul.updateItems(CUL_LIST);
     msPol.updateItems(POL_LIST);
     msDel.updateItems(DEL_LIST);
-  } else {
-    // Only selected lanes — cascade
-    var lanes = Array.from(selectedLanes);
-    var culSet = new Set(), polSet = new Set(), delSet = new Set();
-    lanes.forEach(function(lane) {
-      (LANE_CUL_MAP[lane] || []).forEach(function(v){culSet.add(v)});
-      (LANE_POL_MAP[lane] || []).forEach(function(v){polSet.add(v)});
-      (LANE_DEL_MAP[lane] || []).forEach(function(v){delSet.add(v)});
-    });
-    msCul.updateItems(Array.from(culSet).sort());
-    msPol.updateItems(Array.from(polSet).sort());
-    msDel.updateItems(Array.from(delSet).sort());
+    return;
   }
+
+  // Filter ALL_DATA by current Lane + ETD selection
+  var culPool = [], polPool = [], delPool = [];
+  var culSet = {}, polSet = {}, delSet = {};
+  ALL_DATA.forEach(function(r) {
+    if (!allLanes && !laneSel.has(r.lane)) return;
+    if (etdFrom && r.etd < etdFrom) return;
+    if (etdTo && r.etd > etdTo) return;
+    if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
+    if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
+    if (!delSet[r.del]) { delSet[r.del] = true; delPool.push(r.del); }
+  });
+  culPool.sort(); polPool.sort(); delPool.sort();
+
+  msCul.updateItems(culPool);
+  msPol.updateItems(polPool);
+  msDel.updateItems(delPool);
+}
+
+function onLaneChange(selectedLanes) {
+  cascadeFilters();
   refreshAll();
 }
 
@@ -445,8 +462,8 @@ function initETDRange(min, max) {
   var toEl = document.getElementById('etdTo');
   fromEl.min = min; fromEl.max = max;
   toEl.min = min; toEl.max = max;
-  fromEl.onchange = refreshAll;
-  toEl.onchange = refreshAll;
+  fromEl.onchange = function() { cascadeFilters(); refreshAll(); };
+  toEl.onchange = function() { cascadeFilters(); refreshAll(); };
 }
 
 // ============ KPI CARDS ============
