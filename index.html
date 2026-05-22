@@ -136,8 +136,8 @@ function escapeHtml(s){if(!s)return'';var d=document.createElement('div');d.text
 // === Load data ===
 window.addEventListener('DOMContentLoaded',function(){
   fetch('db_data.json').then(r=>r.json()).then(function(d){
-    DATA = d.records;
-    META = d.metadata;
+    DATA = d.d;
+    META = d.m;
     document.getElementById('headerSub').textContent = META.n.toLocaleString() + ' records, ' + META.ls.length + ' lanes';
     document.getElementById('headerGen').textContent = 'Generated: ' + META.g.slice(0,10);
     initFilters();
@@ -229,7 +229,7 @@ function applyFilters(){
 function updateKPIs(){
   var ft20=0,ft40=0,ft40rf=0,weight=0;
   var lanes=new Set();
-  filtered.forEach(function(r){ft20+=r.a;ft40+=r.e;ft40rf+=r.erf;weight+=r.w||0;lanes.add(r.l)});
+  filtered.forEach(function(r){ft20+=r.a;ft40+=r.e;ft40rf+=r.f;weight+=r.w||0;lanes.add(r.l)});
   document.getElementById('kpiLanes').textContent=lanes.size;
   document.getElementById('kpi20ft').textContent=ft20.toLocaleString();
   document.getElementById('kpi40ft').textContent=ft40.toLocaleString();
@@ -246,7 +246,7 @@ function updateSummary(){
     if(!groups[lk]) groups[lk]={};
     if(!groups[lk][ck]) groups[lk][ck]={};
     if(!groups[lk][ck][comboKey]) groups[lk][ck][comboKey]={pol:r.p,del:r.d,ft20:0,ft40:0,ft40rf:0,booking:0,weight:0};
-    groups[lk][ck][comboKey].ft20+=r.a;groups[lk][ck][comboKey].ft40+=r.e;groups[lk][ck][comboKey].ft40rf+=r.erf;groups[lk][ck][comboKey].booking+=r.k;groups[lk][ck][comboKey].weight+=r.w||0;
+    groups[lk][ck][comboKey].ft20+=r.a;groups[lk][ck][comboKey].ft40+=r.e;groups[lk][ck][comboKey].ft40rf+=r.f;groups[lk][ck][comboKey].booking+=r.k;groups[lk][ck][comboKey].weight+=r.w||0;
   });
 
   var tb='';
@@ -316,7 +316,7 @@ function updateCharts(){
 function updateDetailTable(){
   var tb='';
   filtered.slice(0,5000).forEach(function(r){
-    tb+='<tr><td>'+escapeHtml(r.l)+'</td><td>'+escapeHtml(r.c)+'</td><td>'+escapeHtml(r.b)+'</td><td>'+escapeHtml(r.p)+'</td><td>'+escapeHtml(r.pod)+'</td><td>'+escapeHtml(r.d)+'</td><td>'+escapeHtml(r.o)+'</td><td>'+escapeHtml(r.etd)+'</td><td class="num">'+r.a+'</td><td class="num">'+r.e+'</td><td class="num">'+r.erf+'</td><td class="num">'+r.t+'</td><td>'+escapeHtml(r.s)+'</td><td>'+escapeHtml(r.fw)+'</td><td>'+escapeHtml(r.ct)+'</td></tr>';
+    tb+='<tr><td>'+escapeHtml(r.l)+'</td><td>'+escapeHtml(r.c)+'</td><td>'+escapeHtml(r.b)+'</td><td>'+escapeHtml(r.p)+'</td><td>'+escapeHtml(r.pod)+'</td><td>'+escapeHtml(r.d)+'</td><td>'+escapeHtml(r.o)+'</td><td>'+escapeHtml(r.etd)+'</td><td class="num">'+r.a+'</td><td class="num">'+r.e+'</td><td class="num">'+r.f+'</td><td class="num">'+r.t+'</td><td>'+escapeHtml(r.s)+'</td><td>'+escapeHtml(r.fw)+'</td><td>'+escapeHtml(r.ct)+'</td></tr>';
   });
   if(filtered.length>5000) tb+='<tr><td colspan="15" style="text-align:center;color:#888;padding:8px">Showing 5,000 of '+filtered.length.toLocaleString()+' records</td></tr>';
   document.getElementById('detailBody').innerHTML=tb||'<tr><td colspan="15" style="text-align:center;color:#888;padding:20px">No records</td></tr>';
