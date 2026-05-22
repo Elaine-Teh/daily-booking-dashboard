@@ -153,27 +153,14 @@ window.addEventListener('DOMContentLoaded',function(){
   // Load Chart.js in parallel
   loadChartJS(function(chartOK){});
 
-  fetch('db_data.json?v=5').then(r=>{
+  fetch('db_data.json?v=6').then(r=>{
     if(!r.ok) throw new Error('HTTP '+r.status);
     return r.json();
   }).then(function(d){
     clearTimeout(timeout);
     if(!d || !d.d) throw new Error('Invalid data format');
     META = d.m || {};
-
-    // Decode compressed array records back to objects (string interning)
-    var raw = d.d;
-    DATA = new Array(raw.length);
-    for(var i=0;i<raw.length;i++){
-      var r=raw[i];
-      DATA[i]={
-        l:META.ls[r[0]],c:META.cs[r[1]],p:META.ps[r[2]],d:META.ds[r[3]],
-        o:META.os[r[4]],pod:META.pds[r[5]],b:META.bs[r[6]],s:META.ss[r[7]],
-        fw:META.fws[r[8]],ct:META.cts[r[9]],etd:META.es[r[10]],
-        a:r[11],e:r[12],f:r[13],t:r[14],k:r[15],w:r[16]
-      };
-    }
-    d.d = null; // Free compressed array memory
+    DATA = d.d;
 
     document.getElementById('headerSub').textContent = (META.n||0).toLocaleString() + ' records, ' + (META.ls||[]).length + ' lanes';
     document.getElementById('headerGen').textContent = 'Generated: ' + (META.g||'unknown').slice(0,10);
