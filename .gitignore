@@ -1,0 +1,8 @@
+# Data files (fetched from SFTP, too large for repo)
+data/
+
+# Generated HTML (rebuild locally: python generate_daily_booking_dashboard.py)
+*.html
+
+# Temp scripts
+_gh_*.py
