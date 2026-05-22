@@ -138,8 +138,8 @@ window.addEventListener('DOMContentLoaded',function(){
   fetch('db_data.json').then(r=>r.json()).then(function(d){
     DATA = d.records;
     META = d.metadata;
-    document.getElementById('headerSub').textContent = META.recordCount.toLocaleString() + ' records, ' + META.lanes.length + ' lanes';
-    document.getElementById('headerGen').textContent = 'Generated: ' + META.generated.slice(0,10);
+    document.getElementById('headerSub').textContent = META.n.toLocaleString() + ' records, ' + META.ls.length + ' lanes';
+    document.getElementById('headerGen').textContent = 'Generated: ' + META.g.slice(0,10);
     initFilters();
     document.getElementById('loadingArea').style.display='none';
     document.getElementById('dashboardContent').style.display='block';
@@ -151,7 +151,7 @@ window.addEventListener('DOMContentLoaded',function(){
 
 // === Multi-select logic ===
 function initFilters(){
-  var types = {lane: META.lanes, cul: META.culs, pol: META.pols, del: META.dels};
+  var types = {lane: META.ls, cul: META.cs, pol: META.ps, del: META.ds};
   Object.keys(types).forEach(function(t){
     var list = document.getElementById('list'+t.charAt(0).toUpperCase()+t.slice(1)+'');
     types[t].forEach(function(v){
@@ -189,7 +189,7 @@ function clearAllMS(type){var dd=document.getElementById('dd'+type.charAt(0).toU
 function onMSChange(type){
   var dd = document.getElementById('dd'+type.charAt(0).toUpperCase()+type.slice(1));
   var set = type==='lane'?selectedLanes:type==='cul'?selectedCuls:type==='pol'?selectedPols:selectedDels;
-  var all = type==='lane'?META.lanes:type==='cul'?META.culs:type==='pol'?META.pols:META.dels;
+  var all = type==='lane'?META.ls:type==='cul'?META.cs:type==='pol'?META.ps:META.ds;
   set.clear();
   dd.querySelectorAll('.ms-list input[type=checkbox]:checked').forEach(function(c){set.add(c.value)});
   var trg = document.getElementById('ms'+type.charAt(0).toUpperCase()+type.slice(1)).querySelector('.ms-text');
@@ -212,10 +212,10 @@ function resetFilters(){
 // === Filter & render ===
 function applyFilters(){
   filtered = DATA.filter(function(r){
-    if(selectedLanes.size>0 && !selectedLanes.has(r.lane)) return false;
-    if(selectedCuls.size>0 && !selectedCuls.has(r.cul_code)) return false;
-    if(selectedPols.size>0 && !selectedPols.has(r.pol)) return false;
-    if(selectedDels.size>0 && !selectedDels.has(r.del_port)) return false;
+    if(selectedLanes.size>0 && !selectedLanes.has(r.l)) return false;
+    if(selectedCuls.size>0 && !selectedCuls.has(r.c)) return false;
+    if(selectedPols.size>0 && !selectedPols.has(r.p)) return false;
+    if(selectedDels.size>0 && !selectedDels.has(r.d)) return false;
     return true;
   });
   updateKPIs();
@@ -229,7 +229,7 @@ function applyFilters(){
 function updateKPIs(){
   var ft20=0,ft40=0,ft40rf=0,weight=0;
   var lanes=new Set();
-  filtered.forEach(function(r){ft20+=r.ft20;ft40+=r.ft40;ft40rf+=r.ft40rf;weight+=r.weight||0;lanes.add(r.lane)});
+  filtered.forEach(function(r){ft20+=r.a;ft40+=r.e;ft40rf+=r.erf;weight+=r.w||0;lanes.add(r.l)});
   document.getElementById('kpiLanes').textContent=lanes.size;
   document.getElementById('kpi20ft').textContent=ft20.toLocaleString();
   document.getElementById('kpi40ft').textContent=ft40.toLocaleString();
@@ -242,11 +242,11 @@ function updateKPIs(){
 function updateSummary(){
   var groups={};
   filtered.forEach(function(r){
-    var lk=r.lane,ck=r.cul_code||'(none)',comboKey=r.pol+'|||'+r.del_port;
+    var lk=r.l,ck=r.c||'(none)',comboKey=r.p+'|||'+r.d;
     if(!groups[lk]) groups[lk]={};
     if(!groups[lk][ck]) groups[lk][ck]={};
-    if(!groups[lk][ck][comboKey]) groups[lk][ck][comboKey]={pol:r.pol,del:r.del_port,ft20:0,ft40:0,ft40rf:0,booking:0,weight:0};
-    groups[lk][ck][comboKey].ft20+=r.ft20;groups[lk][ck][comboKey].ft40+=r.ft40;groups[lk][ck][comboKey].ft40rf+=r.ft40rf;groups[lk][ck][comboKey].booking+=r.booking;groups[lk][ck][comboKey].weight+=r.weight||0;
+    if(!groups[lk][ck][comboKey]) groups[lk][ck][comboKey]={pol:r.p,del:r.d,ft20:0,ft40:0,ft40rf:0,booking:0,weight:0};
+    groups[lk][ck][comboKey].ft20+=r.a;groups[lk][ck][comboKey].ft40+=r.e;groups[lk][ck][comboKey].ft40rf+=r.erf;groups[lk][ck][comboKey].booking+=r.k;groups[lk][ck][comboKey].weight+=r.w||0;
   });
 
   var tb='';
@@ -292,21 +292,21 @@ var chartInstances = {};
 function updateCharts(){
   // POL chart
   var polMap={};
-  filtered.forEach(function(r){var k=r.pol;polMap[k]=(polMap[k]||0)+r.teu});
+  filtered.forEach(function(r){var k=r.p;polMap[k]=(polMap[k]||0)+r.t});
   var polSorted=Object.entries(polMap).sort(function(a,b){return b[1]-a[1]}).slice(0,15);
   if(chartInstances.pol) chartInstances.pol.destroy();
   chartInstances.pol = new Chart(document.getElementById('chartPOL'),{type:'bar',data:{labels:polSorted.map(function(e){return e[0]}),datasets:[{label:'TEU',data:polSorted.map(function(e){return e[1]}),backgroundColor:'#4a90d9'}]},options:{responsive:true,plugins:{legend:{display:false}}}});
 
   // DEL TEU chart
   var delMap={};
-  filtered.forEach(function(r){var k=r.del_port;delMap[k]=(delMap[k]||0)+r.teu});
+  filtered.forEach(function(r){var k=r.d;delMap[k]=(delMap[k]||0)+r.t});
   var delSorted=Object.entries(delMap).sort(function(a,b){return b[1]-a[1]}).slice(0,15);
   if(chartInstances.del) chartInstances.del.destroy();
   chartInstances.del = new Chart(document.getElementById('chartDEL'),{type:'bar',data:{labels:delSorted.map(function(e){return e[0]}),datasets:[{label:'TEU',data:delSorted.map(function(e){return e[1]}),backgroundColor:'#27ae60'}]},options:{responsive:true,plugins:{legend:{display:false}}}});
 
   // DEL Weight chart
   var delWMap={};
-  filtered.forEach(function(r){var k=r.del_port;delWMap[k]=(delWMap[k]||0)+(r.weight||0)});
+  filtered.forEach(function(r){var k=r.d;delWMap[k]=(delWMap[k]||0)+(r.w||0)});
   var delWSorted=Object.entries(delWMap).sort(function(a,b){return b[1]-a[1]}).slice(0,15);
   if(chartInstances.weight) chartInstances.weight.destroy();
   chartInstances.weight = new Chart(document.getElementById('chartWeight'),{type:'bar',data:{labels:delWSorted.map(function(e){return e[0]}),datasets:[{label:'Weight',data:delWSorted.map(function(e){return e[1]}),backgroundColor:'#16a085'}]},options:{responsive:true,plugins:{legend:{display:false}}}});
@@ -316,7 +316,7 @@ function updateCharts(){
 function updateDetailTable(){
   var tb='';
   filtered.slice(0,5000).forEach(function(r){
-    tb+='<tr><td>'+escapeHtml(r.lane)+'</td><td>'+escapeHtml(r.cul_code)+'</td><td>'+escapeHtml(r.bl_no)+'</td><td>'+escapeHtml(r.pol)+'</td><td>'+escapeHtml(r.pod)+'</td><td>'+escapeHtml(r.del_port)+'</td><td>'+escapeHtml(r.por)+'</td><td>'+escapeHtml(r.etd)+'</td><td class="num">'+r.ft20+'</td><td class="num">'+r.ft40+'</td><td class="num">'+r.ft40rf+'</td><td class="num">'+r.teu+'</td><td>'+escapeHtml(r.shipper)+'</td><td>'+escapeHtml(r.forwarder)+'</td><td>'+escapeHtml(r.contract_no)+'</td></tr>';
+    tb+='<tr><td>'+escapeHtml(r.l)+'</td><td>'+escapeHtml(r.c)+'</td><td>'+escapeHtml(r.b)+'</td><td>'+escapeHtml(r.p)+'</td><td>'+escapeHtml(r.pod)+'</td><td>'+escapeHtml(r.d)+'</td><td>'+escapeHtml(r.o)+'</td><td>'+escapeHtml(r.etd)+'</td><td class="num">'+r.a+'</td><td class="num">'+r.e+'</td><td class="num">'+r.erf+'</td><td class="num">'+r.t+'</td><td>'+escapeHtml(r.s)+'</td><td>'+escapeHtml(r.fw)+'</td><td>'+escapeHtml(r.ct)+'</td></tr>';
   });
   if(filtered.length>5000) tb+='<tr><td colspan="15" style="text-align:center;color:#888;padding:8px">Showing 5,000 of '+filtered.length.toLocaleString()+' records</td></tr>';
   document.getElementById('detailBody').innerHTML=tb||'<tr><td colspan="15" style="text-align:center;color:#888;padding:20px">No records</td></tr>';
@@ -332,7 +332,7 @@ function filterDetailTable(){
 // === Notes ===
 function loadNotes(){
   var keys=[];
-  if(selectedLanes.size===0) keys=META.lanes.slice(0,5);else selectedLanes.forEach(function(l){keys.push(l)});
+  if(selectedLanes.size===0) keys=META.ls.slice(0,5);else selectedLanes.forEach(function(l){keys.push(l)});
   var key='notes_'+keys.sort().join('_').slice(0,60);
   document.getElementById('notesPanel').textContent=localStorage.getItem(key)||'';
   document.getElementById('notesPanel').dataset.noteKey=key;
