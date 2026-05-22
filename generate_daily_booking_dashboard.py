@@ -16,7 +16,8 @@ warnings.filterwarnings('ignore')
 
 EXCEL_PATH = r'data\daily booking.xlsx'
 INCOME_PATH = r'data\Income Data Base-Marketing.xlsx'
-OUTPUT_HTML = r'daily_booking_dashboard.html'
+OUTPUT_HTML = r'index.html'
+OUTPUT_JSON = r'db_data.json'
 
 # ============ Build POR -> Region mapping from Income Data Base ============
 print("1/3 Building POR->Region mapping...")
@@ -211,8 +212,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <body>
 <div class="header">
   <h1>📊 Daily Booking Dashboard</h1>
-  <span class="updated">UPDATED_TS</span>
+  <span class="updated" id="headerUpdated">Loading...</span>
 </div>
+
+<div id="loadingArea" style="padding:80px 20px;text-align:center;color:#888;font-size:16px">
+  <div style="margin-bottom:12px">⏳ Loading dashboard data...</div>
+  <div style="font-size:13px;color:#bbb">Fetching db_data.json</div>
+</div>
+<div id="errorMsg" style="display:none;padding:60px 20px;text-align:center;color:#e74c3c;font-size:16px"></div>
+
+<div id="dashboardContent" style="display:none">
 <div class="container">
   <!-- FILTERS -->
   <div class="filters-bar">
@@ -335,16 +344,47 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="notes-grid" id="notesGrid"></div>
   </div>
 </div>
+</div>
 
 <script>
 Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 Chart.defaults.font.size = 11;
 
-var ALL_DATA = __DATA__;
-var LANE_LIST = __LANE_LIST__;
-var POL_LIST = __POL_LIST__;
-var DEL_LIST = __DEL_LIST__;
-var CUL_LIST = __CUL_LIST__;
+var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST;
+var msLane, msPol, msDel, msCul;
+
+// ============ DATA LOADING ============
+(function loadData() {
+  var loadingEl = document.getElementById('loadingArea');
+  var contentEl = document.getElementById('dashboardContent');
+  var errorMsg = document.getElementById('errorMsg');
+
+  fetch('db_data.json')
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(payload) {
+      ALL_DATA = payload.data;
+      LANE_LIST = payload.lane_list;
+      POL_LIST = payload.pol_list;
+      DEL_LIST = payload.del_list;
+      CUL_LIST = payload.cul_list;
+
+      loadingEl.style.display = 'none';
+      contentEl.style.display = 'block';
+      document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
+
+      initFilters();
+      refreshAll();
+    })
+    .catch(function(err) {
+      loadingEl.style.display = 'none';
+      errorMsg.style.display = 'block';
+      errorMsg.textContent = 'Failed to load data: ' + err.message;
+      console.error('Data load error:', err);
+    });
+})();
 
 // ============ MULTI-SELECT ENGINE ============
 function buildMultiSelect(id, items, onChange) {
@@ -420,7 +460,6 @@ function getFilteredData() {
 }
 
 // ============ INIT ============
-var msLane, msPol, msDel, msCul;
 function initFilters() {
   msLane = buildMultiSelect('Lane', LANE_LIST, refreshAll);
   msPol = buildMultiSelect('Pol', POL_LIST, refreshAll);
@@ -701,29 +740,30 @@ document.getElementById('btnAddNote').onclick = addNoteForSelected;
 document.getElementById('btnClearNotes').onclick = function() {
   if (confirm('Clear all saved notes?')) { localStorage.removeItem('db_notes'); renderNotes(); }
 };
-
-initFilters();
-refreshAll();
+// Note: initFilters() and refreshAll() are called inside loadData() after fetch completes
 </script>
 </body>
 </html>'''
 
-# Embed data
-data_json = json.dumps(raw_data, ensure_ascii=False)
-lane_json = json.dumps(lane_list, ensure_ascii=False)
-pol_json = json.dumps(pol_list, ensure_ascii=False)
-del_json = json.dumps(del_list, ensure_ascii=False)
-cul_json = json.dumps(cul_list, ensure_ascii=False)
+# ============ Output files ============
 
-HTML = HTML.replace('__DATA__', data_json)
-HTML = HTML.replace('__LANE_LIST__', lane_json)
-HTML = HTML.replace('__POL_LIST__', pol_json)
-HTML = HTML.replace('__DEL_LIST__', del_json)
-HTML = HTML.replace('__CUL_LIST__', cul_json)
-HTML = HTML.replace('UPDATED_TS', datetime.now().strftime('Updated: %Y-%m-%d %H:%M'))
+# 1) db_data.json — data only
+payload = {
+    'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M'),
+    'data': raw_data,
+    'lane_list': lane_list,
+    'pol_list': pol_list,
+    'del_list': del_list,
+    'cul_list': cul_list,
+}
+with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
+    json.dump(payload, f, ensure_ascii=False)
+json_mb = os.path.getsize(OUTPUT_JSON) / (1024*1024)
+print(f"  -> {OUTPUT_JSON} ({json_mb:.1f} MB)")
 
+# 2) index.html — UI only (no data embedded)
 with open(OUTPUT_HTML, 'w', encoding='utf-8') as f:
     f.write(HTML)
-
-size_mb = os.path.getsize(OUTPUT_HTML) / (1024*1024)
-print(f"\nDone! -> {OUTPUT_HTML} ({size_mb:.1f} MB)")
+html_kb = os.path.getsize(OUTPUT_HTML) / 1024
+print(f"  -> {OUTPUT_HTML} ({html_kb:.0f} KB)")
+print(f"\nDone! Upload both files to GitHub Pages root.")
