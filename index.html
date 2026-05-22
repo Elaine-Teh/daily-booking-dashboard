@@ -255,6 +255,7 @@ Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-s
 Chart.defaults.font.size = 11;
 
 var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST;
+var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP;
 var msLane, msPol, msDel, msCul;
 
 // ============ DATA LOADING ============
@@ -289,6 +290,9 @@ var msLane, msPol, msDel, msCul;
       POL_LIST = payload.pol_list;
       DEL_LIST = payload.del_list;
       CUL_LIST = payload.cul_list;
+      LANE_CUL_MAP = payload.lane_cul_map || {};
+      LANE_POL_MAP = payload.lane_pol_map || {};
+      LANE_DEL_MAP = payload.lane_del_map || {};
 
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
@@ -322,10 +326,10 @@ function buildMultiSelect(id, items, onChange) {
   var btnNone = document.getElementById('ms' + id + 'None');
 
   var selected = new Set(items);
-  var state = { input: false, focused: false };
+  var currentItems = items;
 
   function updateTrigger() {
-    var count = selected.size, total = items.length;
+    var count = selected.size, total = currentItems.length;
     var txt = count === total ? 'All ' + id.toUpperCase() + 's' : count + ' ' + id.toUpperCase() + ' selected';
     trigger.querySelector('.ms-text').textContent = txt;
     if (trigger.querySelector('.ms-badge')) trigger.querySelector('.ms-badge').remove();
@@ -338,7 +342,7 @@ function buildMultiSelect(id, items, onChange) {
   function renderList(filter) {
     list.innerHTML = '';
     var filt = (filter || '').toLowerCase();
-    items.forEach(function(item) {
+    currentItems.forEach(function(item) {
       if (filt && item.toLowerCase().indexOf(filt) === -1) return;
       var label = document.createElement('label');
       var cb = document.createElement('input');
@@ -362,7 +366,7 @@ function buildMultiSelect(id, items, onChange) {
 
   trigger.onclick = function(e) { e.stopPropagation(); toggle(); };
   search.oninput = function() { renderList(search.value); };
-  btnAll.onclick = function(e) { e.stopPropagation(); selected = new Set(items); updateTrigger(); renderList(search.value); onChange(selected); };
+  btnAll.onclick = function(e) { e.stopPropagation(); selected = new Set(currentItems); updateTrigger(); renderList(search.value); onChange(selected); };
   btnNone.onclick = function(e) { e.stopPropagation(); selected = new Set(); updateTrigger(); renderList(search.value); onChange(selected); };
 
   document.addEventListener('click', function(e) {
@@ -370,7 +374,20 @@ function buildMultiSelect(id, items, onChange) {
   });
 
   updateTrigger(); renderList('');
-  return { getSelected: function() { return selected; }, setAll: function() { selected = new Set(items); updateTrigger(); renderList(''); }, clear: function() { selected = new Set(); updateTrigger(); renderList(''); } };
+  return {
+    getSelected: function() { return selected; },
+    setAll: function() { selected = new Set(currentItems); updateTrigger(); renderList(''); },
+    clear: function() { selected = new Set(); updateTrigger(); renderList(''); },
+    updateItems: function(newItems) {
+      currentItems = newItems;
+      // Keep only selections that exist in new items
+      var newSet = new Set(newItems);
+      selected = new Set(Array.from(selected).filter(function(x){return newSet.has(x)}));
+      // If nothing selected, select all new items
+      if (selected.size === 0 && newItems.length > 0) selected = new Set(newItems);
+      updateTrigger(); renderList('');
+    }
+  };
 }
 
 // ============ FILTERING LOGIC ============
@@ -394,10 +411,33 @@ function getFilteredData() {
 
 // ============ INIT ============
 function initFilters() {
-  msLane = buildMultiSelect('Lane', LANE_LIST, refreshAll);
+  msLane = buildMultiSelect('Lane', LANE_LIST, onLaneChange);
   msPol = buildMultiSelect('Pol', POL_LIST, refreshAll);
   msDel = buildMultiSelect('Del', DEL_LIST, refreshAll);
   msCul = buildMultiSelect('Cul', CUL_LIST, refreshAll);
+}
+
+// ============ CASCADING FILTER ============
+function onLaneChange(selectedLanes) {
+  if (selectedLanes.size === LANE_LIST.length) {
+    // All lanes selected — show all options
+    msCul.updateItems(CUL_LIST);
+    msPol.updateItems(POL_LIST);
+    msDel.updateItems(DEL_LIST);
+  } else {
+    // Only selected lanes — cascade
+    var lanes = Array.from(selectedLanes);
+    var culSet = new Set(), polSet = new Set(), delSet = new Set();
+    lanes.forEach(function(lane) {
+      (LANE_CUL_MAP[lane] || []).forEach(function(v){culSet.add(v)});
+      (LANE_POL_MAP[lane] || []).forEach(function(v){polSet.add(v)});
+      (LANE_DEL_MAP[lane] || []).forEach(function(v){delSet.add(v)});
+    });
+    msCul.updateItems(Array.from(culSet).sort());
+    msPol.updateItems(Array.from(polSet).sort());
+    msDel.updateItems(Array.from(delSet).sort());
+  }
+  refreshAll();
 }
 
 function initETDRange(min, max) {
@@ -676,7 +716,10 @@ function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&l
 
 document.getElementById('detailSearch').oninput = function() { updateDetail(getFilteredData()); };
 document.getElementById('resetAll').onclick = function() {
-  msLane.setAll(); msPol.setAll(); msDel.setAll(); msCul.setAll();
+  msLane.setAll();
+  msCul.updateItems(CUL_LIST);
+  msPol.updateItems(POL_LIST);
+  msDel.updateItems(DEL_LIST);
   document.getElementById('etdFrom').value = '';
   document.getElementById('etdTo').value = '';
   refreshAll();
