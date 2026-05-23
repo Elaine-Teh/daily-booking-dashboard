@@ -551,12 +551,12 @@ function initETDRange(min, max) {
 // ============ KPI CARDS ============
 function updateKPIs(data) {
   var laneSet = new Set(data.map(function(r) { return r.lane; }));
-  document.getElementById('kpiLane').textContent = laneSet.size;
-  document.getElementById('kpi20').textContent = data.reduce(function(s,r){return s+r.ft20},0);
-  document.getElementById('kpi40').textContent = data.reduce(function(s,r){return s+r.ft40},0);
+  document.getElementById('kpiLane').textContent = laneSet.size.toLocaleString();
+  document.getElementById('kpi20').textContent = data.reduce(function(s,r){return s+r.ft20},0).toLocaleString();
+  document.getElementById('kpi40').textContent = data.reduce(function(s,r){return s+r.ft40},0).toLocaleString();
   var tteu = data.reduce(function(s,r){return s+r.teu},0);
   document.getElementById('kpiTeu').textContent = tteu.toLocaleString();
-  document.getElementById('kpiBooking').textContent = data.length;
+  document.getElementById('kpiBooking').textContent = data.length.toLocaleString();
   var tw = data.reduce(function(s,r){return s+r.container_weight},0);
   document.getElementById('kpiWeight').textContent = tw.toLocaleString();
 }
