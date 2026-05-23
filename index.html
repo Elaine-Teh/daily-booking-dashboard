@@ -152,6 +152,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       </div>
     </div>
     <div class="filter-group">
+      <label>Direction</label>
+      <div class="multi-select" id="msDir" style="min-width:140px">
+        <div class="ms-trigger" id="msDirTrigger"><span class="ms-text">All Directions</span><span class="ms-arrow">▼</span></div>
+        <div class="ms-dropdown" id="msDirDropdown">
+          <div class="ms-actions">
+            <button id="msDirAll">Select All</button>
+            <button id="msDirNone">Clear All</button>
+          </div>
+          <div class="ms-list" id="msDirList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-group">
       <label>POL</label>
       <div class="multi-select" id="msPol">
         <div class="ms-trigger" id="msPolTrigger"><span class="ms-text">All POLs</span><span class="ms-arrow">▼</span></div>
@@ -176,19 +189,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             <button id="msDelNone">Clear All</button>
           </div>
           <div class="ms-list" id="msDelList"></div>
-        </div>
-      </div>
-    </div>
-    <div class="filter-group">
-      <label>Direction</label>
-      <div class="multi-select" id="msDir" style="min-width:140px">
-        <div class="ms-trigger" id="msDirTrigger"><span class="ms-text">All Directions</span><span class="ms-arrow">▼</span></div>
-        <div class="ms-dropdown" id="msDirDropdown">
-          <div class="ms-actions">
-            <button id="msDirAll">Select All</button>
-            <button id="msDirNone">Clear All</button>
-          </div>
-          <div class="ms-list" id="msDirList"></div>
         </div>
       </div>
     </div>
