@@ -484,11 +484,11 @@ function cascadeFilters() {
   var allLanes = (laneSel.size === 0 || laneSel.size === LANE_LIST.length);
   var allETD = (!etdFrom && !etdTo);
 
-  // If both Lane and ETD are "all", restore full lists
+  // If both Lane and ETD are "all", restore full lists and select all
   if (allLanes && allETD) {
-    msCul.updateItems(CUL_LIST);
-    msPol.updateItems(POL_LIST);
-    msDel.updateItems(DEL_LIST);
+    msCul.updateItems(CUL_LIST); msCul.setAll();
+    msPol.updateItems(POL_LIST); msPol.setAll();
+    msDel.updateItems(DEL_LIST); msDel.setAll();
     return;
   }
 
@@ -505,9 +505,9 @@ function cascadeFilters() {
   });
   culPool.sort(); polPool.sort(); delPool.sort();
 
-  msCul.updateItems(culPool);
-  msPol.updateItems(polPool);
-  msDel.updateItems(delPool);
+  msCul.updateItems(culPool); msCul.setAll();
+  msPol.updateItems(polPool); msPol.setAll();
+  msDel.updateItems(delPool); msDel.setAll();
 }
 
 function onLaneChange(selectedLanes) {
