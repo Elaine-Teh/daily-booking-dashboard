@@ -14,10 +14,10 @@ from datetime import datetime
 
 warnings.filterwarnings('ignore')
 
-EXCEL_PATH = r'data\daily booking.xlsx'
-INCOME_PATH = r'data\Income Data Base-Marketing.xlsx'
-OUTPUT_HTML = r'index.html'
-OUTPUT_JSON = r'db_data.json'
+EXCEL_PATH = r'C:\Users\elaineteh\WorkBuddy\20260521093934\data\daily booking.xlsx'
+INCOME_PATH = r'C:\Users\elaineteh\WorkBuddy\20260521093934\data\Income Data Base-Marketing.xlsx'
+OUTPUT_HTML = r'C:\Users\elaineteh\WorkBuddy\20260522180506\daily-booking-dashboard\index.html'
+OUTPUT_JSON = r'C:\Users\elaineteh\WorkBuddy\20260522180506\daily-booking-dashboard\db_data.json'
 
 # ============ Build POR -> Region mapping from Income Data Base ============
 print("1/3 Building POR->Region mapping...")
@@ -57,7 +57,7 @@ def dt(val):
     return s(val)
 
 raw_data = []
-lane_set, pol_set, del_set, cul_set = set(), set(), set(), set()
+lane_set, pol_set, del_set, cul_set, dir_set = set(), set(), set(), set(), set()
 
 for row in ws.iter_rows(min_row=2, values_only=True):
     trunk_vessel = s(row[3])  # col D: TRUNK VESSEL NAME
@@ -72,9 +72,18 @@ for row in ws.iter_rows(min_row=2, values_only=True):
     booking_teu = f(row[49])  # col AX: BOOKING TTL TEU
     ttl_teu = booking_teu if booking_teu > 0 else (ft20 + (ft40 + ft40rf) * 2)
 
+    cul_code = s(row[4])
+    # Extract direction from last character of CUL CODE (W/E/S/N)
+    direction = ''
+    if cul_code:
+        last_ch = cul_code[-1].upper()
+        if last_ch in ('W', 'E', 'S', 'N'):
+            direction = last_ch
+
     rec = {
         'vvd': trunk_vessel,
-        'cul_code': s(row[4]),
+        'cul_code': cul_code,
+        'direction': direction,
         'lane': s(row[2]),
         'first_vessel': s(row[1]),
         'bl_no': s(row[5]),
@@ -91,18 +100,50 @@ for row in ws.iter_rows(min_row=2, values_only=True):
     raw_data.append(rec)
     if pol: pol_set.add(pol)
     if del_port: del_set.add(del_port)
-    cul_code = s(row[4])
+    cul_code = rec['cul_code']
     if cul_code: cul_set.add(cul_code)
     lane = s(row[2])
     if lane: lane_set.add(lane)
+    if direction: dir_set.add(direction)
 wb.close()
 
 lane_list = sorted(lane_set)
 pol_list = sorted(pol_set)
 del_list = sorted(del_set)
 cul_list = sorted(cul_set)
+dir_list = sorted(dir_set)  # ['E', 'N', 'S', 'W']
+
+# ETD date range
+etd_dates = sorted(set(r['etd'] for r in raw_data if r['etd']))
+etd_min = etd_dates[0] if etd_dates else ''
+etd_max = etd_dates[-1] if etd_dates else ''
+
+# Lane -> CUL/POL/DEL mapping for cascading filters
+lane_cul_map = {}  # { lane: sorted list of CUL codes }
+lane_pol_map = {}  # { lane: sorted list of POLs }
+lane_del_map = {}  # { lane: sorted list of DELs }
+lane_etd_map = {}  # { lane: {min: 'YYYY-MM-DD', max: 'YYYY-MM-DD'} }
+for r in raw_data:
+    lane = r['lane']
+    if not lane: continue
+    for key, val in [('cul_code', lane_cul_map), ('pol', lane_pol_map), ('del_port', lane_del_map)]:
+        v = r[key]
+        if v:
+            if lane not in val: val[lane] = set()
+            val[lane].add(v)
+    # Track ETD min/max per lane
+    etd = r['etd']
+    if etd:
+        if lane not in lane_etd_map:
+            lane_etd_map[lane] = {'min': etd, 'max': etd}
+        else:
+            if etd < lane_etd_map[lane]['min']: lane_etd_map[lane]['min'] = etd
+            if etd > lane_etd_map[lane]['max']: lane_etd_map[lane]['max'] = etd
+for m in [lane_cul_map, lane_pol_map, lane_del_map]:
+    for k in m: m[k] = sorted(m[k])
 
 print(f"  {len(raw_data)} records, {len(lane_list)} Lanes, {len(pol_list)} POLs, {len(del_list)} DELs, {len(cul_list)} CULs")
+print(f"  ETD range: {etd_min} ~ {etd_max}")
 
 # ============ Generate HTML ============
 print("3/3 Generating HTML...")
@@ -149,6 +190,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .ms-count{font-size:11px;color:#999;margin-left:auto}
 .filter-clear{font-size:11px;color:#e74c3c;cursor:pointer;text-decoration:underline;white-space:nowrap}
 .filter-clear:hover{color:#c0392b}
+
+/* ETD Date Range Filter */
+.etd-filter{display:flex;align-items:center;gap:6px;background:#f5f6fa;border:1px solid #ddd;border-radius:6px;padding:6px 10px}
+.etd-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+.etd-filter input[type=date]{border:1px solid #ddd;border-radius:4px;padding:4px 8px;font-size:13px;outline:none;background:#fff;cursor:pointer}
+.etd-filter input[type=date]:focus{border-color:#0f3460}
+.etd-filter .etd-sep{color:#999;font-size:13px}
 
 /* KPI Cards */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:14px}
@@ -254,6 +302,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       </div>
     </div>
     <div class="filter-group">
+      <label>Direction</label>
+      <div class="multi-select" id="msDir" style="min-width:140px">
+        <div class="ms-trigger" id="msDirTrigger"><span class="ms-text">All Directions</span><span class="ms-arrow">▼</span></div>
+        <div class="ms-dropdown" id="msDirDropdown">
+          <div class="ms-actions">
+            <button id="msDirAll">Select All</button>
+            <button id="msDirNone">Clear All</button>
+          </div>
+          <div class="ms-list" id="msDirList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-group">
       <label>POL</label>
       <div class="multi-select" id="msPol">
         <div class="ms-trigger" id="msPolTrigger"><span class="ms-text">All POLs</span><span class="ms-arrow">▼</span></div>
@@ -281,6 +342,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         </div>
       </div>
     </div>
+    <div class="etd-filter">
+      <label>ETD</label>
+      <input type="date" id="etdFrom" title="ETD From">
+      <span class="etd-sep">~</span>
+      <input type="date" id="etdTo" title="ETD To">
+    </div>
     <span class="filter-clear" id="resetAll">Reset All</span>
   </div>
 
@@ -293,6 +360,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="kpi-card"><div class="kpi-value" id="kpiBooking">0</div><div class="kpi-label">Booking Count</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpiWeight">0</div><div class="kpi-label">Container Weight</div></div>
   </div>
+  <div id="debugPanel" style="display:none;background:#fff3cd;color:#856404;padding:8px 12px;border-radius:6px;margin:8px 0;font-size:12px;font-family:monospace;"></div>
 
   <!-- SUMMARY TABLE -->
   <div class="summary-section">
@@ -350,17 +418,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 Chart.defaults.font.size = 11;
 
-var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST;
-var msLane, msPol, msDel, msCul;
+var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST, DIR_LIST;
+var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP, LANE_ETD_MAP;
+var GLOBAL_ETD_MIN, GLOBAL_ETD_MAX;
+var msLane, msPol, msDel, msCul, msDir;
 
 // ============ DATA LOADING ============
 (function loadData() {
   var loadingEl = document.getElementById('loadingArea');
   var contentEl = document.getElementById('dashboardContent');
   var errorMsg = document.getElementById('errorMsg');
+  var loadStart = Date.now();
 
-  fetch('db_data.json')
+  function showError(msg, detail) {
+    loadingEl.style.display = 'none';
+    errorMsg.style.display = 'block';
+    errorMsg.innerHTML = '<b>Failed to load data</b><br>' + msg +
+      (detail ? '<br><span style="font-size:12px;color:#999">' + detail + '</span>' : '');
+  }
+
+  // Abort after 30 seconds
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() {
+    controller.abort();
+  }, 30000);
+
+  fetch('db_data.json?v=2', {signal: controller.signal})
     .then(function(r) {
+      clearTimeout(timeoutId);
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     })
@@ -370,24 +455,36 @@ var msLane, msPol, msDel, msCul;
       POL_LIST = payload.pol_list;
       DEL_LIST = payload.del_list;
       CUL_LIST = payload.cul_list;
+      DIR_LIST = payload.dir_list || ['E','N','S','W'];
+      LANE_CUL_MAP = payload.lane_cul_map || {};
+      LANE_POL_MAP = payload.lane_pol_map || {};
+      LANE_DEL_MAP = payload.lane_del_map || {};
+      LANE_ETD_MAP = payload.lane_etd_map || {};
 
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
       document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
 
       initFilters();
+      initETDRange(payload.etd_min, payload.etd_max);
       refreshAll();
     })
     .catch(function(err) {
+      clearTimeout(timeoutId);
       loadingEl.style.display = 'none';
-      errorMsg.style.display = 'block';
-      errorMsg.textContent = 'Failed to load data: ' + err.message;
+      var elapsed = ((Date.now() - loadStart) / 1000).toFixed(1);
+      if (err.name === 'AbortError') {
+        showError('Request timed out after 30 seconds.', 'The data file (~27MB) may be too large for your current network. Try refreshing or check your connection.');
+      } else {
+        showError(err.message, 'Time elapsed: ' + elapsed + 's | Please check browser console (F12) for details.');
+      }
       console.error('Data load error:', err);
     });
 })();
 
 // ============ MULTI-SELECT ENGINE ============
-function buildMultiSelect(id, items, onChange) {
+function buildMultiSelect(id, items, onChange, label) {
+  label = label || id;
   var root = document.getElementById('ms' + id);
   var trigger = document.getElementById('ms' + id + 'Trigger');
   var dropdown = document.getElementById('ms' + id + 'Dropdown');
@@ -397,11 +494,14 @@ function buildMultiSelect(id, items, onChange) {
   var btnNone = document.getElementById('ms' + id + 'None');
 
   var selected = new Set(items);
-  var state = { input: false, focused: false };
+  var currentItems = items;
 
   function updateTrigger() {
-    var count = selected.size, total = items.length;
-    var txt = count === total ? 'All ' + id.toUpperCase() + 's' : count + ' ' + id.toUpperCase() + ' selected';
+    var count = selected.size, total = currentItems.length;
+    var txt;
+    if (total === 0) txt = '0 available';
+    else if (count === total) txt = 'All ' + label + 's';
+    else txt = count + ' ' + label + ' selected';
     trigger.querySelector('.ms-text').textContent = txt;
     if (trigger.querySelector('.ms-badge')) trigger.querySelector('.ms-badge').remove();
     if (count > 0 && count < total) {
@@ -413,7 +513,7 @@ function buildMultiSelect(id, items, onChange) {
   function renderList(filter) {
     list.innerHTML = '';
     var filt = (filter || '').toLowerCase();
-    items.forEach(function(item) {
+    currentItems.forEach(function(item) {
       if (filt && item.toLowerCase().indexOf(filt) === -1) return;
       var label = document.createElement('label');
       var cb = document.createElement('input');
@@ -431,21 +531,35 @@ function buildMultiSelect(id, items, onChange) {
   function toggle() {
     root.classList.toggle('active');
     if (root.classList.contains('active')) {
-      search.value = ''; renderList(''); search.focus();
+      if (search) { search.value = ''; search.focus(); }
+      renderList('');
     }
   }
 
   trigger.onclick = function(e) { e.stopPropagation(); toggle(); };
-  search.oninput = function() { renderList(search.value); };
-  btnAll.onclick = function(e) { e.stopPropagation(); selected = new Set(items); updateTrigger(); renderList(search.value); onChange(selected); };
-  btnNone.onclick = function(e) { e.stopPropagation(); selected = new Set(); updateTrigger(); renderList(search.value); onChange(selected); };
+  if (search) { search.oninput = function() { renderList(search.value); }; }
+  btnAll.onclick = function(e) { e.stopPropagation(); selected = new Set(currentItems); updateTrigger(); renderList(search ? search.value : ''); onChange(selected); };
+  btnNone.onclick = function(e) { e.stopPropagation(); selected = new Set(); updateTrigger(); renderList(search ? search.value : ''); onChange(selected); };
 
   document.addEventListener('click', function(e) {
     if (!root.contains(e.target)) root.classList.remove('active');
   });
 
   updateTrigger(); renderList('');
-  return { getSelected: function() { return selected; }, setAll: function() { selected = new Set(items); updateTrigger(); renderList(''); }, clear: function() { selected = new Set(); updateTrigger(); renderList(''); } };
+  return {
+    getSelected: function() { return selected; },
+    setAll: function() { selected = new Set(currentItems); updateTrigger(); renderList(''); },
+    clear: function() { selected = new Set(); updateTrigger(); renderList(''); },
+    updateItems: function(newItems) {
+      currentItems = newItems;
+      // Keep only selections that exist in new items
+      var newSet = new Set(newItems);
+      selected = new Set(Array.from(selected).filter(function(x){return newSet.has(x)}));
+      // If nothing selected, select all new items
+      if (selected.size === 0 && newItems.length > 0) selected = new Set(newItems);
+      updateTrigger(); renderList('');
+    }
+  };
 }
 
 // ============ FILTERING LOGIC ============
@@ -454,28 +568,145 @@ function getFilteredData() {
   var polSel = msPol.getSelected();
   var delSel = msDel.getSelected();
   var culSel = msCul.getSelected();
-  return ALL_DATA.filter(function(r) {
-    return laneSel.has(r.lane) && polSel.has(r.pol) && delSel.has(r.del_port) && culSel.has(r.cul_code);
+  var dirSel = msDir.getSelected();
+  var etdFrom = document.getElementById('etdFrom').value;
+  var etdTo = document.getElementById('etdTo').value;
+
+  // Debug logging to console
+  console.log('=== Filter Debug ===');
+  console.log('laneSel size:', laneSel.size, 'sample:', Array.from(laneSel).slice(0,3));
+  console.log('culSel size:', culSel.size, 'sample:', Array.from(culSel).slice(0,3));
+  console.log('polSel size:', polSel.size, 'sample:', Array.from(polSel).slice(0,3));
+  console.log('delSel size:', delSel.size, 'sample:', Array.from(delSel).slice(0,3));
+  console.log('dirSel size:', dirSel.size, 'sample:', Array.from(dirSel).slice(0,4));
+  console.log('etdFrom:', etdFrom, 'etdTo:', etdTo);
+  console.log('Total ALL_DATA:', ALL_DATA.length);
+
+  var lanePass = 0, culPass = 0, polPass = 0, delPass = 0, dirPass = 0, etdPass = 0, totalPass = 0;
+  var result = ALL_DATA.filter(function(r) {
+    if (!laneSel.has(r.lane)) { return false; } else { lanePass++; }
+    if (!polSel.has(r.pol)) { return false; } else { polPass++; }
+    if (!delSel.has(r.del_port)) { return false; } else { delPass++; }
+    if (!culSel.has(r.cul_code)) { return false; } else { culPass++; }
+    // Direction filter: records with no direction pass if all directions are selected
+    var recDir = r.direction || '';
+    if (recDir && !dirSel.has(recDir)) { return false; } else { dirPass++; }
+    if (etdFrom && r.etd && r.etd < etdFrom) { return false; } else { etdPass++; }
+    if (etdTo && r.etd && r.etd > etdTo) { return false; }
+    totalPass++;
+    return true;
   });
+
+  console.log('After lane filter:', lanePass);
+  console.log('After pol filter:', polPass);
+  console.log('After del filter:', delPass);
+  console.log('After cul filter:', culPass);
+  console.log('After dir filter:', dirPass);
+  console.log('After etd filter:', etdPass);
+  console.log('Final result:', totalPass);
+  console.log('====================');
+
+  // Inline debug panel update
+  var debugEl = document.getElementById('debugPanel');
+  if (debugEl) {
+    debugEl.innerHTML = '<b>Debug:</b> lane=' + lanePass + ' pol=' + polPass + ' del=' + delPass + ' cul=' + culPass + ' dir=' + dirPass + ' etd=' + etdPass + ' final=' + totalPass;
+    debugEl.style.display = totalPass === 0 ? 'block' : 'none';
+  }
+
+  return result;
 }
 
 // ============ INIT ============
 function initFilters() {
-  msLane = buildMultiSelect('Lane', LANE_LIST, refreshAll);
-  msPol = buildMultiSelect('Pol', POL_LIST, refreshAll);
-  msDel = buildMultiSelect('Del', DEL_LIST, refreshAll);
-  msCul = buildMultiSelect('Cul', CUL_LIST, refreshAll);
+  msLane = buildMultiSelect('Lane', LANE_LIST, onLaneChange, 'LANE');
+  msPol = buildMultiSelect('Pol', POL_LIST, refreshAll, 'POL');
+  msDel = buildMultiSelect('Del', DEL_LIST, refreshAll, 'DEL');
+  msCul = buildMultiSelect('Cul', CUL_LIST, refreshAll, 'CUL');
+  msDir = buildMultiSelect('Dir', DIR_LIST, refreshAll, 'Direction');
+}
+
+// ============ CASCADING FILTER ============
+// Unified cascade: update CUL/POL/DEL pools based on current Lane + ETD selection
+function cascadeFilters() {
+  var laneSel = msLane.getSelected();
+  var etdFrom = document.getElementById('etdFrom').value;
+  var etdTo = document.getElementById('etdTo').value;
+  var allLanes = (laneSel.size === 0 || laneSel.size === LANE_LIST.length);
+  var allETD = (!etdFrom && !etdTo);
+
+  // If both Lane and ETD are "all", restore full lists and select all
+  if (allLanes && allETD) {
+    msCul.updateItems(CUL_LIST); msCul.setAll();
+    msPol.updateItems(POL_LIST); msPol.setAll();
+    msDel.updateItems(DEL_LIST); msDel.setAll();
+    return;
+  }
+
+  // Filter ALL_DATA by current Lane + ETD selection
+  var culPool = [], polPool = [], delPool = [];
+  var culSet = {}, polSet = {}, delSet = {};
+  ALL_DATA.forEach(function(r) {
+    if (!allLanes && !laneSel.has(r.lane)) return;
+    if (etdFrom && r.etd < etdFrom) return;
+    if (etdTo && r.etd > etdTo) return;
+    if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
+    if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
+    if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
+  });
+  culPool.sort(); polPool.sort(); delPool.sort();
+
+  msCul.updateItems(culPool); msCul.setAll();
+  msPol.updateItems(polPool); msPol.setAll();
+  msDel.updateItems(delPool); msDel.setAll();
+}
+
+function onLaneChange(selectedLanes) {
+  // Adjust ETD range to selected lane(s) data range
+  var fromEl = document.getElementById('etdFrom');
+  var toEl = document.getElementById('etdTo');
+  if (selectedLanes.size === 0 || selectedLanes.size === LANE_LIST.length) {
+    // All lanes — restore full ETD range
+    fromEl.min = GLOBAL_ETD_MIN; fromEl.max = GLOBAL_ETD_MAX;
+    toEl.min = GLOBAL_ETD_MIN; toEl.max = GLOBAL_ETD_MAX;
+  } else {
+    // Specific lane(s) — narrow to their ETD range
+    var lanes = Array.from(selectedLanes);
+    var laneMin = '', laneMax = '';
+    lanes.forEach(function(lane) {
+      var m = LANE_ETD_MAP[lane];
+      if (m) {
+        if (!laneMin || m.min < laneMin) laneMin = m.min;
+        if (!laneMax || m.max > laneMax) laneMax = m.max;
+      }
+    });
+    if (laneMin && laneMax) {
+      fromEl.min = laneMin; fromEl.max = laneMax;
+      toEl.min = laneMin; toEl.max = laneMax;
+    }
+  }
+  cascadeFilters();
+  refreshAll();
+}
+
+function initETDRange(min, max) {
+  GLOBAL_ETD_MIN = min; GLOBAL_ETD_MAX = max;
+  var fromEl = document.getElementById('etdFrom');
+  var toEl = document.getElementById('etdTo');
+  fromEl.min = min; fromEl.max = max;
+  toEl.min = min; toEl.max = max;
+  fromEl.onchange = function() { cascadeFilters(); refreshAll(); };
+  toEl.onchange = function() { cascadeFilters(); refreshAll(); };
 }
 
 // ============ KPI CARDS ============
 function updateKPIs(data) {
   var laneSet = new Set(data.map(function(r) { return r.lane; }));
-  document.getElementById('kpiLane').textContent = laneSet.size;
-  document.getElementById('kpi20').textContent = data.reduce(function(s,r){return s+r.ft20},0);
-  document.getElementById('kpi40').textContent = data.reduce(function(s,r){return s+r.ft40},0);
+  document.getElementById('kpiLane').textContent = laneSet.size.toLocaleString();
+  document.getElementById('kpi20').textContent = data.reduce(function(s,r){return s+r.ft20},0).toLocaleString();
+  document.getElementById('kpi40').textContent = data.reduce(function(s,r){return s+r.ft40},0).toLocaleString();
   var tteu = data.reduce(function(s,r){return s+r.teu},0);
   document.getElementById('kpiTeu').textContent = tteu.toLocaleString();
-  document.getElementById('kpiBooking').textContent = data.length;
+  document.getElementById('kpiBooking').textContent = data.length.toLocaleString();
   var tw = data.reduce(function(s,r){return s+r.container_weight},0);
   document.getElementById('kpiWeight').textContent = tw.toLocaleString();
 }
@@ -528,7 +759,7 @@ function buildSummary(data) {
     tbody += '</tr>';
 
     culCodes.forEach(function(ck) {
-      var combos = Object.values(groups[lane][ck]);
+      var combos = Object.values(groups[lane][ck]).sort(function(a,b){ return a.pol.localeCompare(b.pol); });
       var culBooking = combos.reduce(function(s,v){return s+v.booking_sum},0);
       var culWeight = combos.reduce(function(s,v){return s+v.weight_sum},0);
       var culFT20 = combos.reduce(function(s,v){return s+v.ft20_sum},0);
@@ -569,7 +800,11 @@ function buildSummary(data) {
     });
   });
 
-  document.getElementById('summaryTable').querySelector('tbody').innerHTML = tbody;
+  if (totalRows === 0) {
+    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
+  } else {
+    document.getElementById('summaryTable').querySelector('tbody').innerHTML = tbody;
+  }
   document.getElementById('summaryCount').textContent = totalRows + ' groups';
 }
 
@@ -734,7 +969,17 @@ function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&l
 
 document.getElementById('detailSearch').oninput = function() { updateDetail(getFilteredData()); };
 document.getElementById('resetAll').onclick = function() {
-  msLane.setAll(); msPol.setAll(); msDel.setAll(); msCul.setAll(); refreshAll();
+  msLane.setAll();
+  msCul.setAll();
+  msPol.setAll();
+  msDel.setAll();
+  msDir.setAll();
+  var fromEl = document.getElementById('etdFrom');
+  var toEl = document.getElementById('etdTo');
+  fromEl.value = ''; toEl.value = '';
+  fromEl.min = GLOBAL_ETD_MIN; fromEl.max = GLOBAL_ETD_MAX;
+  toEl.min = GLOBAL_ETD_MIN; toEl.max = GLOBAL_ETD_MAX;
+  refreshAll();
 };
 document.getElementById('btnAddNote').onclick = addNoteForSelected;
 document.getElementById('btnClearNotes').onclick = function() {
@@ -755,6 +1000,13 @@ payload = {
     'pol_list': pol_list,
     'del_list': del_list,
     'cul_list': cul_list,
+    'dir_list': dir_list,
+    'etd_min': etd_min,
+    'etd_max': etd_max,
+    'lane_cul_map': lane_cul_map,
+    'lane_pol_map': lane_pol_map,
+    'lane_del_map': lane_del_map,
+    'lane_etd_map': lane_etd_map,
 }
 with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
     json.dump(payload, f, ensure_ascii=False)
