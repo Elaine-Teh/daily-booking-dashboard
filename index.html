@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Daily Booking Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -311,15 +314,20 @@ var msLane, msPol, msDel, msCul, msDir;
       LANE_DEL_MAP = payload.lane_del_map || {};
       LANE_ETD_MAP = payload.lane_etd_map || {};
 
-      // Data integrity check
-      console.log('[Data Check] Total records loaded: ' + ALL_DATA.length + ' (expected: ' + (payload.total_records || '?') + ')');
-      console.log('[Data Check] Generated at: ' + (payload.generated_at || '?'));
+      // Data integrity check - also show on screen
+      var checkMsg = '';
+      checkMsg += 'Records: ' + ALL_DATA.length + ' (expected: ' + (payload.total_records || '?') + ')<br>';
+      checkMsg += 'Generated: ' + (payload.generated_at || '?') + '<br>';
       (function() {
         var bzcf = ALL_DATA.filter(function(r) { return r.cul_code === 'BZCF2621W'; });
         if (bzcf.length > 0) {
-          console.log('[Data Check] BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf.reduce(function(s,r){return s+r.ft20},0));
+          var bzcf20 = bzcf.reduce(function(s,r){return s+r.ft20},0);
+          checkMsg += 'BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf20;
+          console.log('[Data Check] BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf20);
         }
       })();
+      var debugEl = document.getElementById('debugPanel');
+      if (debugEl) { debugEl.innerHTML = '<b>Data Check:</b> ' + checkMsg; debugEl.style.display = 'block'; }
 
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
