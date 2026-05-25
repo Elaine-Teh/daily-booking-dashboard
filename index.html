@@ -293,7 +293,7 @@ var msLane, msPol, msDel, msCul, msDir;
     controller.abort();
   }, 30000);
 
-  fetch('db_data.json?v=2', {signal: controller.signal})
+  fetch('db_data.json?ts=' + Date.now(), {signal: controller.signal})
     .then(function(r) {
       clearTimeout(timeoutId);
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -310,6 +310,16 @@ var msLane, msPol, msDel, msCul, msDir;
       LANE_POL_MAP = payload.lane_pol_map || {};
       LANE_DEL_MAP = payload.lane_del_map || {};
       LANE_ETD_MAP = payload.lane_etd_map || {};
+
+      // Data integrity check
+      console.log('[Data Check] Total records loaded: ' + ALL_DATA.length + ' (expected: ' + (payload.total_records || '?') + ')');
+      console.log('[Data Check] Generated at: ' + (payload.generated_at || '?'));
+      (function() {
+        var bzcf = ALL_DATA.filter(function(r) { return r.cul_code === 'BZCF2621W'; });
+        if (bzcf.length > 0) {
+          console.log('[Data Check] BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf.reduce(function(s,r){return s+r.ft20},0));
+        }
+      })();
 
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
@@ -459,8 +469,8 @@ function getFilteredData() {
   // Inline debug panel update
   var debugEl = document.getElementById('debugPanel');
   if (debugEl) {
-    debugEl.innerHTML = '<b>Debug:</b> lane=' + lanePass + ' pol=' + polPass + ' del=' + delPass + ' cul=' + culPass + ' dir=' + dirPass + ' etd=' + etdPass + ' final=' + totalPass;
-    debugEl.style.display = totalPass === 0 ? 'block' : 'none';
+    debugEl.innerHTML = '<b>Debug:</b> lane=' + lanePass + ' pol=' + polPass + ' del=' + delPass + ' cul=' + culPass + ' dir=' + dirPass + ' etd=' + etdPass + ' <b style="color:#0f3460">final=' + totalPass + '</b>';
+    debugEl.style.display = 'block';
   }
 
   return result;
