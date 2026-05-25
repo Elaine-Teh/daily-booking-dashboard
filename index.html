@@ -451,19 +451,26 @@ function getFilteredData() {
   console.log('Total ALL_DATA:', ALL_DATA.length);
 
   var lanePass = 0, culPass = 0, polPass = 0, delPass = 0, dirPass = 0, etdPass = 0, totalPass = 0;
+  // BZCF2621W specific debug
+  var bzcfLost = {lane:0, pol:0, del:0, cul:0, dir:0, etd:0, pass:0};
   var result = ALL_DATA.filter(function(r) {
-    if (!laneSel.has(r.lane)) { return false; } else { lanePass++; }
-    if (!polSel.has(r.pol)) { return false; } else { polPass++; }
-    if (!delSel.has(r.del_port)) { return false; } else { delPass++; }
-    if (!culSel.has(r.cul_code)) { return false; } else { culPass++; }
-    // Direction filter: records with no direction pass if all directions are selected
+    var isBzcf = (r.cul_code === 'BZCF2621W');
+    if (!laneSel.has(r.lane)) { if (isBzcf) bzcfLost.lane++; return false; } else { lanePass++; }
+    if (!polSel.has(r.pol)) { if (isBzcf) bzcfLost.pol++; return false; } else { polPass++; }
+    if (!delSel.has(r.del_port)) { if (isBzcf) bzcfLost.del++; return false; } else { delPass++; }
+    if (!culSel.has(r.cul_code)) { if (isBzcf) bzcfLost.cul++; return false; } else { culPass++; }
     var recDir = r.direction || '';
-    if (recDir && !dirSel.has(recDir)) { return false; } else { dirPass++; }
-    if (etdFrom && r.etd && r.etd < etdFrom) { return false; } else { etdPass++; }
-    if (etdTo && r.etd && r.etd > etdTo) { return false; }
+    if (recDir && !dirSel.has(recDir)) { if (isBzcf) bzcfLost.dir++; return false; } else { dirPass++; }
+    if (etdFrom && r.etd && r.etd < etdFrom) { if (isBzcf) bzcfLost.etd++; return false; } else { etdPass++; }
+    if (etdTo && r.etd && r.etd > etdTo) { if (isBzcf) bzcfLost.etd++; return false; }
+    if (isBzcf) bzcfLost.pass++;
     totalPass++;
     return true;
   });
+  if (bzcfLost.pass > 0 || bzcfLost.lane > 0 || bzcfLost.pol > 0 || bzcfLost.del > 0 || bzcfLost.dir > 0 || bzcfLost.etd > 0) {
+    console.log('[BZCF2621W] Total in raw:', ALL_DATA.filter(function(r){return r.cul_code==='BZCF2621W'}).length);
+    console.log('[BZCF2621W] Filtered: lane=', bzcfLost.lane, 'pol=', bzcfLost.pol, 'del=', bzcfLost.del, 'cul=', bzcfLost.cul, 'dir=', bzcfLost.dir, 'etd=', bzcfLost.etd, 'PASS=', bzcfLost.pass);
+  }
 
   console.log('After lane filter:', lanePass);
   console.log('After pol filter:', polPass);
