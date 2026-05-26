@@ -296,7 +296,7 @@ var msLane, msPol, msDel, msCul, msDir;
     controller.abort();
   }, 30000);
 
-  fetch('db_data.json?ts=' + Date.now(), {signal: controller.signal})
+  fetch('db_data.json?ts=' + Date.now(), {signal: controller.signal, cache: 'no-store'})
     .then(function(r) {
       clearTimeout(timeoutId);
       if (!r.ok) throw new Error('HTTP ' + r.status);
