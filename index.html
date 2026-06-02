@@ -858,13 +858,16 @@ function restoreFilterState() {
     if (!raw) return false;
     var state = JSON.parse(raw);
 
-    // Restore Lane first (triggers cascade)
+    // Suppress ALL callbacks during restore
+    msLane._suppress(true); msCul._suppress(true); msDir._suppress(true); msPol._suppress(true); msDel._suppress(true);
+
+    // Restore Lane + ETD first
     if (state.lane && state.lane.length) msLane.setSelected(state.lane);
     if (state.etdFrom) document.getElementById('etdFrom').value = state.etdFrom;
     if (state.etdTo) document.getElementById('etdTo').value = state.etdTo;
     if (state.detailSearch) document.getElementById('detailSearch').value = state.detailSearch;
 
-    // Now cascade to update available options for dependent filters
+    // Cascade to update available options (no callbacks fire)
     onLaneChange(msLane.getSelected());
 
     // Re-apply POL/DEL/CUL/DIR after cascade (preserving valid selections)
@@ -885,8 +888,9 @@ function restoreFilterState() {
       if (delValid.length) msDel.setSelected(delValid);
     }
 
-    // Final cascade with restored dependent filters
-    cascadeFilters();
+    // Re-enable callbacks
+    msLane._suppress(false); msCul._suppress(false); msDir._suppress(false); msPol._suppress(false); msDel._suppress(false);
+
     refreshAll();
     return true;
   } catch(e) { console.warn('Failed to restore filter state:', e); return false; }
