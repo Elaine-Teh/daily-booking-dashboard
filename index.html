@@ -857,6 +857,7 @@ function restoreFilterState() {
     var raw = localStorage.getItem('db_filter_state');
     if (!raw) return false;
     var state = JSON.parse(raw);
+    console.log('[RESTORE] Saved state:', JSON.stringify(state).substring(0, 200));
 
     // Suppress ALL callbacks during restore
     msLane._suppress(true); msCul._suppress(true); msDir._suppress(true); msPol._suppress(true); msDel._suppress(true);
@@ -864,22 +865,53 @@ function restoreFilterState() {
     // Step 1: Restore Lane
     if (state.lane && state.lane.length && state.lane.length < LANE_LIST.length) {
       msLane.setSelected(state.lane);
+      console.log('[RESTORE] Lane set to:', state.lane);
     }
 
     // Step 2: Restore ETD
     if (state.etdFrom) document.getElementById('etdFrom').value = state.etdFrom;
     if (state.etdTo) document.getElementById('etdTo').value = state.etdTo;
 
-    // Step 3: Manually set saved POL/DEL/CUL/DIR selections BEFORE cascade
-    if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) msCul.setSelected(state.cul);
-    if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) msPol.setSelected(state.pol);
-    if (state.del && state.del.length && state.del.length < DEL_LIST.length) msDel.setSelected(state.del);
-    if (state.dir && state.dir.length && state.dir.length < DIR_LIST.length) msDir.setSelected(state.dir);
+    // Step 3: Manually set saved CUL/POL/DEL/DIR selections BEFORE cascade
+    if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
+      msCul.setSelected(state.cul);
+      console.log('[RESTORE] CUL set to:', state.cul.slice(0,5), '... total:', state.cul.length);
+    }
+    if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) {
+      msPol.setSelected(state.pol);
+      console.log('[RESTORE] POL set to:', state.pol);
+    }
+    if (state.del && state.del.length && state.del.length < DEL_LIST.length) {
+      msDel.setSelected(state.del);
+      console.log('[RESTORE] DEL set to:', state.del);
+    }
+    if (state.dir && state.dir.length && state.dir.length < DIR_LIST.length) {
+      msDir.setSelected(state.dir);
+      console.log('[RESTORE] DIR set to:', state.dir);
+    }
 
     // Step 4: Cascade updates pools - updateItems will KEEP valid selections
+    console.log('[RESTORE] Before cascade - POL selected:', Array.from(msPol.getSelected()).slice(0,5), 'DEL selected:', Array.from(msDel.getSelected()).slice(0,5));
     onLaneChange(msLane.getSelected());
+    console.log('[RESTORE] After cascade - POL selected:', Array.from(msPol.getSelected()).slice(0,5), 'DEL selected:', Array.from(msDel.getSelected()).slice(0,5));
 
-    // Step 5: Restore detail search
+    // Step 5: Re-apply saved selections after cascade (in case updateItems defaulted to all)
+    if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) {
+      var polValid = state.pol.filter(function(v){ return msPol.getItems().indexOf(v) >= 0; });
+      if (polValid.length > 0) { msPol.setSelected(polValid); }
+      console.log('[RESTORE] POL re-applied:', polValid.length, 'valid of', state.pol.length);
+    }
+    if (state.del && state.del.length && state.del.length < DEL_LIST.length) {
+      var delValid = state.del.filter(function(v){ return msDel.getItems().indexOf(v) >= 0; });
+      if (delValid.length > 0) { msDel.setSelected(delValid); }
+      console.log('[RESTORE] DEL re-applied:', delValid.length, 'valid of', state.del.length);
+    }
+    if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
+      var culValid = state.cul.filter(function(v){ return msCul.getItems().indexOf(v) >= 0; });
+      if (culValid.length > 0) { msCul.setSelected(culValid); }
+    }
+
+    // Step 6: Restore detail search
     if (state.detailSearch) document.getElementById('detailSearch').value = state.detailSearch;
 
     // Re-enable callbacks
