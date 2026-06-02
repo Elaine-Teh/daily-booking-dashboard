@@ -536,9 +536,9 @@ function cascadeFilters() {
   });
   culPool.sort(); polPool.sort(); delPool.sort();
 
-  msCul.updateItems(culPool); msCul.setAll();
-  msPol.updateItems(polPool); msPol.setAll();
-  msDel.updateItems(delPool); msDel.setAll();
+  msCul.updateItems(culPool);
+  msPol.updateItems(polPool);
+  msDel.updateItems(delPool);
 }
 
 function onLaneChange(selectedLanes) {
@@ -861,32 +861,26 @@ function restoreFilterState() {
     // Suppress ALL callbacks during restore
     msLane._suppress(true); msCul._suppress(true); msDir._suppress(true); msPol._suppress(true); msDel._suppress(true);
 
-    // Restore Lane + ETD first
-    if (state.lane && state.lane.length) msLane.setSelected(state.lane);
+    // Step 1: Restore Lane
+    if (state.lane && state.lane.length && state.lane.length < LANE_LIST.length) {
+      msLane.setSelected(state.lane);
+    }
+
+    // Step 2: Restore ETD
     if (state.etdFrom) document.getElementById('etdFrom').value = state.etdFrom;
     if (state.etdTo) document.getElementById('etdTo').value = state.etdTo;
-    if (state.detailSearch) document.getElementById('detailSearch').value = state.detailSearch;
 
-    // Cascade to update available options (no callbacks fire)
+    // Step 3: Manually set saved POL/DEL/CUL/DIR selections BEFORE cascade
+    if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) msCul.setSelected(state.cul);
+    if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) msPol.setSelected(state.pol);
+    if (state.del && state.del.length && state.del.length < DEL_LIST.length) msDel.setSelected(state.del);
+    if (state.dir && state.dir.length && state.dir.length < DIR_LIST.length) msDir.setSelected(state.dir);
+
+    // Step 4: Cascade updates pools - updateItems will KEEP valid selections
     onLaneChange(msLane.getSelected());
 
-    // Re-apply POL/DEL/CUL/DIR after cascade (preserving valid selections)
-    if (state.cul && state.cul.length) {
-      var culValid = state.cul.filter(function(v){ return msCul.getItems().indexOf(v)>=0; });
-      if (culValid.length) msCul.setSelected(culValid);
-    }
-    if (state.dir && state.dir.length) {
-      var dirValid = state.dir.filter(function(v){ return msDir.getItems().indexOf(v)>=0; });
-      if (dirValid.length) msDir.setSelected(dirValid);
-    }
-    if (state.pol && state.pol.length) {
-      var polValid = state.pol.filter(function(v){ return msPol.getItems().indexOf(v)>=0; });
-      if (polValid.length) msPol.setSelected(polValid);
-    }
-    if (state.del && state.del.length) {
-      var delValid = state.del.filter(function(v){ return msDel.getItems().indexOf(v)>=0; });
-      if (delValid.length) msDel.setSelected(delValid);
-    }
+    // Step 5: Restore detail search
+    if (state.detailSearch) document.getElementById('detailSearch').value = state.detailSearch;
 
     // Re-enable callbacks
     msLane._suppress(false); msCul._suppress(false); msDir._suppress(false); msPol._suppress(false); msDel._suppress(false);
