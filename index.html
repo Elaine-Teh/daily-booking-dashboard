@@ -336,8 +336,6 @@ var msLane, msPol, msDel, msCul, msDir;
       initFilters();
       initETDRange(payload.etd_min, payload.etd_max);
       restoreFilterState();
-      cascadeFilters();
-      refreshAll();
     })
     .catch(function(err) {
       clearTimeout(timeoutId);
@@ -859,14 +857,37 @@ function restoreFilterState() {
     var raw = localStorage.getItem('db_filter_state');
     if (!raw) return false;
     var state = JSON.parse(raw);
+
+    // Restore Lane first (triggers cascade)
     if (state.lane && state.lane.length) msLane.setSelected(state.lane);
-    if (state.pol && state.pol.length) msPol.setSelected(state.pol);
-    if (state.del && state.del.length) msDel.setSelected(state.del);
-    if (state.cul && state.cul.length) msCul.setSelected(state.cul);
-    if (state.dir && state.dir.length) msDir.setSelected(state.dir);
     if (state.etdFrom) document.getElementById('etdFrom').value = state.etdFrom;
     if (state.etdTo) document.getElementById('etdTo').value = state.etdTo;
     if (state.detailSearch) document.getElementById('detailSearch').value = state.detailSearch;
+
+    // Now cascade to update available options for dependent filters
+    onLaneChange(msLane.getSelected());
+
+    // Re-apply POL/DEL/CUL/DIR after cascade (preserving valid selections)
+    if (state.cul && state.cul.length) {
+      var culValid = state.cul.filter(function(v){ return msCul.getItems().indexOf(v)>=0; });
+      if (culValid.length) msCul.setSelected(culValid);
+    }
+    if (state.dir && state.dir.length) {
+      var dirValid = state.dir.filter(function(v){ return msDir.getItems().indexOf(v)>=0; });
+      if (dirValid.length) msDir.setSelected(dirValid);
+    }
+    if (state.pol && state.pol.length) {
+      var polValid = state.pol.filter(function(v){ return msPol.getItems().indexOf(v)>=0; });
+      if (polValid.length) msPol.setSelected(polValid);
+    }
+    if (state.del && state.del.length) {
+      var delValid = state.del.filter(function(v){ return msDel.getItems().indexOf(v)>=0; });
+      if (delValid.length) msDel.setSelected(delValid);
+    }
+
+    // Final cascade with restored dependent filters
+    cascadeFilters();
+    refreshAll();
     return true;
   } catch(e) { console.warn('Failed to restore filter state:', e); return false; }
 }
