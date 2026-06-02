@@ -335,6 +335,8 @@ var msLane, msPol, msDel, msCul, msDir;
 
       initFilters();
       initETDRange(payload.etd_min, payload.etd_max);
+      restoreFilterState();
+      cascadeFilters();
       refreshAll();
     })
     .catch(function(err) {
@@ -418,6 +420,12 @@ function buildMultiSelect(id, items, onChange, label) {
     getSelected: function() { return selected; },
     setAll: function() { selected = new Set(currentItems); updateTrigger(); renderList(''); },
     clear: function() { selected = new Set(); updateTrigger(); renderList(''); },
+    setSelected: function(items) {
+      var validSet = new Set(currentItems);
+      selected = new Set(Array.isArray(items) ? items.filter(function(x){return validSet.has(x)}) : []);
+      if (selected.size === 0 && currentItems.length > 0) selected = new Set(currentItems);
+      updateTrigger(); renderList('');
+    },
     updateItems: function(newItems) {
       currentItems = newItems;
       // Keep only selections that exist in new items
@@ -493,11 +501,11 @@ function getFilteredData() {
 
 // ============ INIT ============
 function initFilters() {
-  msLane = buildMultiSelect('Lane', LANE_LIST, onLaneChange, 'LANE');
-  msPol = buildMultiSelect('Pol', POL_LIST, refreshAll, 'POL');
-  msDel = buildMultiSelect('Del', DEL_LIST, refreshAll, 'DEL');
-  msCul = buildMultiSelect('Cul', CUL_LIST, refreshAll, 'CUL');
-  msDir = buildMultiSelect('Dir', DIR_LIST, refreshAll, 'Direction');
+  msLane = buildMultiSelect('Lane', LANE_LIST, function() { onLaneChange(msLane.getSelected()); saveFilterState(); }, 'LANE');
+  msPol = buildMultiSelect('Pol', POL_LIST, function() { refreshAll(); saveFilterState(); }, 'POL');
+  msDel = buildMultiSelect('Del', DEL_LIST, function() { refreshAll(); saveFilterState(); }, 'DEL');
+  msCul = buildMultiSelect('Cul', CUL_LIST, function() { refreshAll(); saveFilterState(); }, 'CUL');
+  msDir = buildMultiSelect('Dir', DIR_LIST, function() { refreshAll(); saveFilterState(); }, 'Direction');
 }
 
 // ============ CASCADING FILTER ============
@@ -569,8 +577,8 @@ function initETDRange(min, max) {
   var toEl = document.getElementById('etdTo');
   fromEl.min = min; fromEl.max = max;
   toEl.min = min; toEl.max = max;
-  fromEl.onchange = function() { cascadeFilters(); refreshAll(); };
-  toEl.onchange = function() { cascadeFilters(); refreshAll(); };
+  fromEl.onchange = function() { cascadeFilters(); refreshAll(); saveFilterState(); };
+  toEl.onchange = function() { cascadeFilters(); refreshAll(); saveFilterState(); };
 }
 
 // ============ KPI CARDS ============
@@ -829,6 +837,40 @@ function addNoteForSelected() {
   renderNotes();
 }
 
+// ============ FILTER PERSISTENCE (localStorage) ============
+function saveFilterState() {
+  try {
+    var state = {
+      lane: Array.from(msLane.getSelected()),
+      pol: Array.from(msPol.getSelected()),
+      del: Array.from(msDel.getSelected()),
+      cul: Array.from(msCul.getSelected()),
+      dir: Array.from(msDir.getSelected()),
+      etdFrom: document.getElementById('etdFrom').value,
+      etdTo: document.getElementById('etdTo').value,
+      detailSearch: document.getElementById('detailSearch').value
+    };
+    localStorage.setItem('db_filter_state', JSON.stringify(state));
+  } catch(e) { console.warn('Failed to save filter state:', e); }
+}
+
+function restoreFilterState() {
+  try {
+    var raw = localStorage.getItem('db_filter_state');
+    if (!raw) return false;
+    var state = JSON.parse(raw);
+    if (state.lane && state.lane.length) msLane.setSelected(state.lane);
+    if (state.pol && state.pol.length) msPol.setSelected(state.pol);
+    if (state.del && state.del.length) msDel.setSelected(state.del);
+    if (state.cul && state.cul.length) msCul.setSelected(state.cul);
+    if (state.dir && state.dir.length) msDir.setSelected(state.dir);
+    if (state.etdFrom) document.getElementById('etdFrom').value = state.etdFrom;
+    if (state.etdTo) document.getElementById('etdTo').value = state.etdTo;
+    if (state.detailSearch) document.getElementById('detailSearch').value = state.detailSearch;
+    return true;
+  } catch(e) { console.warn('Failed to restore filter state:', e); return false; }
+}
+
 // ============ MAIN REFRESH ============
 function refreshAll() {
   var data = getFilteredData();
@@ -842,7 +884,7 @@ function refreshAll() {
 // ============ SETUP ============
 function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-document.getElementById('detailSearch').oninput = function() { updateDetail(getFilteredData()); };
+document.getElementById('detailSearch').oninput = function() { updateDetail(getFilteredData()); saveFilterState(); };
 document.getElementById('resetAll').onclick = function() {
   msLane.setAll();
   msCul.setAll();
@@ -855,6 +897,7 @@ document.getElementById('resetAll').onclick = function() {
   fromEl.min = GLOBAL_ETD_MIN; fromEl.max = GLOBAL_ETD_MAX;
   toEl.min = GLOBAL_ETD_MIN; toEl.max = GLOBAL_ETD_MAX;
   refreshAll();
+  saveFilterState();
 };
 document.getElementById('btnAddNote').onclick = addNoteForSelected;
 document.getElementById('btnClearNotes').onclick = function() {
