@@ -661,7 +661,7 @@ function buildSummary(data) {
 
       tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
       tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
-      tbody += '<td></td><td></td>';
+      tbody += '<td></td><td></td><td></td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
@@ -694,6 +694,7 @@ function buildSummary(data) {
           tbody += '<td></td><td></td>';
           tbody += '<td>' + escapeHtml(c.pol) + '</td>';
           tbody += '<td>' + escapeHtml(c.del) + '</td>';
+          tbody += '<td></td>';  // ETA column empty for detail rows
           tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
           tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
           tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
