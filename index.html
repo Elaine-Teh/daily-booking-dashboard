@@ -107,19 +107,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .note-actions button:hover{background:#0f3460;color:#fff;border-color:#0f3460}
 .note-actions button.primary{background:#0f3460;color:#fff;border-color:#0f3460}
 
-/* POL inline expand */
-.pol-expand{cursor:pointer;transition:background .15s}
-.pol-expand:hover{background:#f8f9ff}
-.pol-expand.expanded{background:#f0f4ff}
-.pol-expand .pol-expand-icon{display:inline-block;width:14px;font-size:10px;transition:transform .2s, color .2s;color:#aaa;text-align:center}
-.pol-expand.expanded .pol-expand-icon{color:#0f3460}
-.pol-cul-breakdown td{font-size:11px;background:#fafbfc;border-bottom:1px dotted #eee}
-.pol-cul-breakdown td.pol-cul-code{padding-left:56px;color:#888}
-.pol-cul-breakdown td.nm{text-align:right;color:#777;font-variant-numeric:tabular-nums}
-.pol-cul-breakdown td.nm-total{text-align:right;color:#0f3460;font-weight:600;font-variant-numeric:tabular-nums;border-top:1px solid #ddd}
-.pol-cul-total td{font-size:12px;background:#f0f4ff;border-top:2px solid #d0d8f0;border-bottom:2px solid #d0d8f0}
-.pol-cul-total td.nm-total{font-size:12px}
-
 @media(max-width:1100px){.chart-row{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}.filters-bar{flex-direction:column;align-items:stretch}}
 </style>
 </head>
@@ -614,11 +601,9 @@ function updateKPIs(data) {
 }
 
 // ============ SUMMARY TABLE ============
-var POL_BREAKDOWN = {}; // { lane: { pol: [ {cul_code, ft20, ft40, ft40rf, booking, weight}, ... ] } }
 
 function buildSummary(data) {
   var groups = {};
-  var pb = {}; // temp POL_BREAKDOWN builder
   data.forEach(function(r) {
     var lk = r.lane || '(blank)';
     var ck = r.cul_code || '(blank)';
@@ -634,17 +619,7 @@ function buildSummary(data) {
     groups[lk][ck][comboKey].ft40_sum += r.ft40;
     groups[lk][ck][comboKey].ft40rf_sum += r.ft40rf;
 
-    // POL-level CUL breakdown (cross-CUL, Lane-scoped)
-    if (!pb[lk]) pb[lk] = {};
-    if (!pb[lk][r.pol]) pb[lk][r.pol] = {};
-    if (!pb[lk][r.pol][ck]) pb[lk][r.pol][ck] = { ft20: 0, ft40: 0, ft40rf: 0, booking: 0, weight: 0 };
-    pb[lk][r.pol][ck].ft20 += r.ft20;
-    pb[lk][r.pol][ck].ft40 += r.ft40;
-    pb[lk][r.pol][ck].ft40rf += r.ft40rf;
-    pb[lk][r.pol][ck].booking += r.booking_cnt;
-    pb[lk][r.pol][ck].weight += r.container_weight;
   });
-  POL_BREAKDOWN = pb;
 
   var tbody = '';
   var totalRows = 0;
@@ -700,9 +675,9 @@ function buildSummary(data) {
         var cFEU = c.ft40_sum + c.ft40rf_sum;
         var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
         var polKey = escapeHtml(lane) + '|||' + escapeHtml(c.pol);
-        tbody += '<tr class="detail-row hidden pol-expand" data-parent="' + escapeHtml(lane) + '" data-pol="' + polKey + '" onclick="togglePolDetail(this)">';
+        tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
         tbody += '<td></td><td></td>';
-        tbody += '<td><span class="pol-expand-icon">▶</span> ' + escapeHtml(c.pol) + '</td>';
+        tbody += '<td>' + escapeHtml(c.pol) + '</td>';
         tbody += '<td>' + escapeHtml(c.del) + '</td>';
         tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
         tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
@@ -733,14 +708,6 @@ function toggleLane(row) {
   document.querySelectorAll('[data-parent="' + lane + '"]').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
   });
-  // Remove any orphan POL breakdown rows + collapsed state when lane closes
-  if (!visible) {
-    document.querySelectorAll('.pol-expand[data-parent="' + lane + '"]').forEach(function(r) {
-      r.classList.remove('expanded');
-    });
-    document.querySelectorAll('.pol-cul-breakdown[data-parent="' + lane + '"]').forEach(function(r) { r.remove(); });
-    document.querySelectorAll('.pol-cul-total[data-parent="' + lane + '"]').forEach(function(r) { r.remove(); });
-  }
 }
 
 // ============ CHARTS ============
@@ -978,77 +945,6 @@ function refreshAll() {
   renderNotes();
 }
 
-// ============ POL INLINE CUL BREAKDOWN ============
-function togglePolDetail(row) {
-  var expanded = row.classList.contains('expanded');
-  var polKey = row.dataset.pol; // "lane|||pol"
-  var parts = polKey.split('|||');
-  var lane = parts[0], pol = parts[1];
-
-  if (expanded) {
-    // Collapse
-    row.classList.remove('expanded');
-    row.querySelector('.pol-expand-icon').textContent = '▶';
-    var next = row.nextElementSibling;
-    while (next && (next.classList.contains('pol-cul-breakdown') || next.classList.contains('pol-cul-total'))) {
-      var tmp = next.nextElementSibling;
-      next.remove();
-      next = tmp;
-    }
-    return;
-  }
-
-  // Expand
-  row.classList.add('expanded');
-  row.querySelector('.pol-expand-icon').textContent = '▼';
-
-  var breakdown = (POL_BREAKDOWN[lane] && POL_BREAKDOWN[lane][pol]) || {};
-  var entries = Object.entries(breakdown).sort(function(a, b) { return b[1].booking - a[1].booking; });
-
-  // Totals
-  var t20 = 0, t40 = 0, t40rf = 0, tFeu = 0, tBooking = 0, tWeight = 0;
-  entries.forEach(function(e) {
-    t20 += e[1].ft20; t40 += e[1].ft40; t40rf += e[1].ft40rf;
-    tBooking += e[1].booking; tWeight += e[1].weight;
-  });
-  tFeu = t40 + t40rf;
-
-  var rows = '';
-  entries.forEach(function(e) {
-    var c = e[1];
-    var feu = c.ft40 + c.ft40rf;
-    var avg = c.booking > 0 ? Math.round(c.weight / c.booking) : 0;
-    rows += '<tr class="pol-cul-breakdown" data-parent="' + escapeHtml(row.dataset.parent || lane) + '">';
-    rows += '<td></td><td></td>';
-    rows += '<td class="pol-cul-code">' + escapeHtml(e[0]) + '</td>';
-    rows += '<td></td>';
-    rows += '<td class="nm">' + c.ft20.toLocaleString() + '</td>';
-    rows += '<td class="nm">' + c.ft40.toLocaleString() + '</td>';
-    rows += '<td class="nm">' + c.ft40rf.toLocaleString() + '</td>';
-    rows += '<td class="nm">' + feu.toLocaleString() + '</td>';
-    rows += '<td class="nm">' + c.booking.toLocaleString() + '</td>';
-    rows += '<td class="nm">' + c.weight.toLocaleString() + '</td>';
-    rows += '<td class="nm">' + avg.toLocaleString() + '</td>';
-    rows += '</tr>';
-  });
-
-  // Total row
-  var avgW = tBooking > 0 ? Math.round(tWeight / tBooking) : 0;
-  rows += '<tr class="pol-cul-total" data-parent="' + escapeHtml(row.dataset.parent || lane) + '">';
-  rows += '<td></td><td></td>';
-  rows += '<td class="pol-cul-code" style="color:#0f3460;font-weight:700">TOTAL (' + entries.length + ' CULs)</td>';
-  rows += '<td></td>';
-  rows += '<td class="nm-total">' + t20.toLocaleString() + '</td>';
-  rows += '<td class="nm-total">' + t40.toLocaleString() + '</td>';
-  rows += '<td class="nm-total">' + t40rf.toLocaleString() + '</td>';
-  rows += '<td class="nm-total">' + tFeu.toLocaleString() + '</td>';
-  rows += '<td class="nm-total">' + tBooking.toLocaleString() + '</td>';
-  rows += '<td class="nm-total">' + tWeight.toLocaleString() + '</td>';
-  rows += '<td class="nm-total">' + avgW.toLocaleString() + '</td>';
-  rows += '</tr>';
-
-  row.insertAdjacentHTML('afterend', rows);
-}
 
 // ============ SETUP ============
 function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
