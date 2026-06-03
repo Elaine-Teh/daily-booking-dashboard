@@ -107,6 +107,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .note-actions button:hover{background:#0f3460;color:#fff;border-color:#0f3460}
 .note-actions button.primary{background:#0f3460;color:#fff;border-color:#0f3460}
 
+/* POL Breakdown Modal */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.25);max-width:900px;width:95%;max-height:80vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #eee;background:#f8f9fb}
+.modal-header h2{font-size:16px;font-weight:600;color:#1a1a2e;margin:0}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:#999;padding:2px 8px;border-radius:4px;line-height:1}
+.modal-close:hover{background:#eee;color:#333}
+.modal-body{padding:16px 20px 20px;overflow-y:auto;flex:1}
+.modal-stats{display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+.modal-stats .stat-item{background:#f0f4ff;border-radius:8px;padding:10px 16px;text-align:center;min-width:90px}
+.modal-stats .stat-val{font-size:20px;font-weight:700;color:#0f3460}
+.modal-stats .stat-lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.modal-stats .stat-item.accent .stat-val{color:#e74c3c}
+.pol-detail-table{width:100%;border-collapse:collapse;font-size:13px}
+.pol-detail-table th{background:#f5f6fa;padding:8px 10px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;color:#666;border-bottom:2px solid #e0e0e0;position:sticky;top:0;z-index:1}
+.pol-detail-table td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
+.pol-detail-table .num{text-align:right;font-variant-numeric:tabular-nums}
+.pol-detail-table .total-row{background:#fafbfc;font-weight:700;border-top:2px solid #ddd}
+.pol-detail-table .total-row td{font-size:13px;color:#0f3460;padding-top:10px}
+.pol-link{cursor:pointer;color:#0f3460;text-decoration:underline;text-decoration-style:dotted;transition:color .15s}
+.pol-link:hover{color:#e74c3c;text-decoration-style:solid}
+
 @media(max-width:1100px){.chart-row{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}.filters-bar{flex-direction:column;align-items:stretch}}
 </style>
 </head>
@@ -265,6 +288,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="notes-grid" id="notesGrid"></div>
   </div>
 </div>
+</div>
+
+<!-- POL Breakdown Modal -->
+<div class="modal-overlay" id="polModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>POL Breakdown: <span id="polModalTitle">---</span></h2>
+      <button class="modal-close" onclick="closePolModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="polModalBody">
+      <div class="modal-stats" id="polModalStats"></div>
+      <div style="overflow-x:auto">
+        <table class="pol-detail-table" id="polDetailTable">
+          <thead><tr>
+            <th>CUL Code</th>
+            <th class="num">20ft</th>
+            <th class="num">40ft</th>
+            <th class="num">40RF</th>
+            <th class="num">FEU</th>
+            <th class="num">Sum of Booking</th>
+            <th class="num">Sum of Weight</th>
+            <th class="num">Avg Weight</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -673,7 +724,7 @@ function buildSummary(data) {
         var cFEU = c.ft40_sum + c.ft40rf_sum;
         tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
         tbody += '<td></td><td></td>';
-        tbody += '<td>' + escapeHtml(c.pol) + '</td>';
+        tbody += '<td><span class="pol-link" onclick="showPolBreakdown(this)" data-pol="' + escapeHtml(c.pol) + '">' + escapeHtml(c.pol) + '</span></td>';
         tbody += '<td>' + escapeHtml(c.del) + '</td>';
         tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
         tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
@@ -940,6 +991,97 @@ function refreshAll() {
   updateCharts(data);
   updateDetail(data);
   renderNotes();
+}
+
+// ============ POL BREAKDOWN MODAL ============
+function showPolBreakdown(el) {
+  var pol = el.dataset.pol;
+  if (!pol) return;
+
+  // Get currently filtered data
+  var data = getFilteredData();
+
+  // Build CUL-level aggregates for this POL
+  var culMap = {};
+  data.forEach(function(r) {
+    if (r.pol !== pol) return;
+    var ck = r.cul_code || '(blank)';
+    if (!culMap[ck]) culMap[ck] = { ft20: 0, ft40: 0, ft40rf: 0, booking: 0, weight: 0 };
+    culMap[ck].ft20 += r.ft20;
+    culMap[ck].ft40 += r.ft40;
+    culMap[ck].ft40rf += r.ft40rf;
+    culMap[ck].booking += r.booking_cnt;
+    culMap[ck].weight += r.container_weight;
+  });
+
+  // Sort by booking descending
+  var entries = Object.entries(culMap).sort(function(a, b) { return b[1].booking - a[1].booking; });
+
+  // Totals
+  var total20 = 0, total40 = 0, total40rf = 0, totalFeu = 0, totalBooking = 0, totalWeight = 0;
+  entries.forEach(function(e) {
+    total20 += e[1].ft20;
+    total40 += e[1].ft40;
+    total40rf += e[1].ft40rf;
+    totalBooking += e[1].booking;
+    totalWeight += e[1].weight;
+  });
+  totalFeu = total40 + total40rf;
+
+  // Build stats
+  document.getElementById('polModalTitle').textContent = pol;
+  var culCount = entries.length;
+  document.getElementById('polModalStats').innerHTML =
+    '<div class="stat-item"><div class="stat-val">' + culCount + '</div><div class="stat-lbl">CUL Codes</div></div>' +
+    '<div class="stat-item"><div class="stat-val">' + total20.toLocaleString() + '</div><div class="stat-lbl">20ft</div></div>' +
+    '<div class="stat-item"><div class="stat-val">' + total40.toLocaleString() + '</div><div class="stat-lbl">40ft</div></div>' +
+    '<div class="stat-item"><div class="stat-val">' + total40rf.toLocaleString() + '</div><div class="stat-lbl">40RF</div></div>' +
+    '<div class="stat-item accent"><div class="stat-val">' + totalFeu.toLocaleString() + '</div><div class="stat-lbl">FEU</div></div>' +
+    '<div class="stat-item accent"><div class="stat-val">' + totalBooking.toLocaleString() + '</div><div class="stat-lbl">Booking</div></div>' +
+    '<div class="stat-item"><div class="stat-val">' + totalWeight.toLocaleString() + '</div><div class="stat-lbl">Weight</div></div>';
+
+  // Build rows
+  var tbody = '';
+  entries.forEach(function(e) {
+    var c = e[1];
+    var feu = c.ft40 + c.ft40rf;
+    var avg = c.booking > 0 ? Math.round(c.weight / c.booking) : 0;
+    tbody += '<tr>' +
+      '<td><b>' + escapeHtml(e[0]) + '</b></td>' +
+      '<td class="num">' + c.ft20.toLocaleString() + '</td>' +
+      '<td class="num">' + c.ft40.toLocaleString() + '</td>' +
+      '<td class="num">' + c.ft40rf.toLocaleString() + '</td>' +
+      '<td class="num">' + feu.toLocaleString() + '</td>' +
+      '<td class="num">' + c.booking.toLocaleString() + '</td>' +
+      '<td class="num">' + c.weight.toLocaleString() + '</td>' +
+      '<td class="num">' + avg.toLocaleString() + '</td>' +
+      '</tr>';
+  });
+
+  // Total row
+  var avgW = totalBooking > 0 ? Math.round(totalWeight / totalBooking) : 0;
+  tbody += '<tr class="total-row">' +
+    '<td><b>TOTAL</b></td>' +
+    '<td class="num">' + total20.toLocaleString() + '</td>' +
+    '<td class="num">' + total40.toLocaleString() + '</td>' +
+    '<td class="num">' + total40rf.toLocaleString() + '</td>' +
+    '<td class="num">' + totalFeu.toLocaleString() + '</td>' +
+    '<td class="num">' + totalBooking.toLocaleString() + '</td>' +
+    '<td class="num">' + totalWeight.toLocaleString() + '</td>' +
+    '<td class="num">' + avgW.toLocaleString() + '</td>' +
+    '</tr>';
+
+  document.getElementById('polDetailTable').querySelector('tbody').innerHTML = tbody;
+  document.getElementById('polModal').classList.add('show');
+
+  // Close on overlay click
+  document.getElementById('polModal').onclick = function(e) {
+    if (e.target === document.getElementById('polModal')) closePolModal();
+  };
+}
+
+function closePolModal() {
+  document.getElementById('polModal').classList.remove('show');
 }
 
 // ============ SETUP ============
