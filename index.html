@@ -682,30 +682,16 @@ function buildSummary(data) {
       var polKeys = Object.keys(polGroups).sort();
       polKeys.forEach(function(pol) {
         var group = polGroups[pol];
+        // First pass: accumulate totals
         var polFT20 = 0, polFT40 = 0, polFT40RF = 0, polBooking = 0, polWeight = 0;
         group.forEach(function(c) {
-          var cFEU = c.ft40_sum + c.ft40rf_sum;
-          var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
-          tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
-          tbody += '<td></td><td></td>';
-          tbody += '<td>' + escapeHtml(c.pol) + '</td>';
-          tbody += '<td>' + escapeHtml(c.del) + '</td>';
-          tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
-          tbody += '</tr>';
-          totalRows++;
           polFT20 += c.ft20_sum;
           polFT40 += c.ft40_sum;
           polFT40RF += c.ft40rf_sum;
           polBooking += c.booking_sum;
           polWeight += c.weight_sum;
         });
-        // POL subtotal row (only if multiple DELs for this POL)
+        // POL subtotal row on top (only if multiple DELs for this POL)
         if (group.length > 1) {
           var polFEU = polFT40 + polFT40RF;
           var polAvg = polBooking > 0 ? Math.round(polWeight / polBooking) : 0;
@@ -723,6 +709,24 @@ function buildSummary(data) {
           tbody += '</tr>';
           totalRows++;
         }
+        // Second pass: detail rows
+        group.forEach(function(c) {
+          var cFEU = c.ft40_sum + c.ft40rf_sum;
+          var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
+          tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
+          tbody += '<td></td><td></td>';
+          tbody += '<td>' + escapeHtml(c.pol) + '</td>';
+          tbody += '<td>' + escapeHtml(c.del) + '</td>';
+          tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
+          tbody += '</tr>';
+          totalRows++;
+        });
       });
     });
   });
