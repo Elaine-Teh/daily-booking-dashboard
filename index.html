@@ -539,6 +539,10 @@ function cascadeFilters() {
   msCul.updateItems(culPool);
   msPol.updateItems(polPool);
   msDel.updateItems(delPool);
+  // During normal user interaction, reset to show all available options
+  if (!window._isRestoring) {
+    msCul.setAll(); msPol.setAll(); msDel.setAll();
+  }
 }
 
 function onLaneChange(selectedLanes) {
@@ -860,6 +864,7 @@ function restoreFilterState() {
     console.log('[RESTORE] Saved state:', JSON.stringify(state).substring(0, 200));
 
     // Suppress ALL callbacks during restore
+    window._isRestoring = true;
     msLane._suppress(true); msCul._suppress(true); msDir._suppress(true); msPol._suppress(true); msDel._suppress(true);
 
     // Step 1: Restore Lane
@@ -916,6 +921,7 @@ function restoreFilterState() {
 
     // Re-enable callbacks
     msLane._suppress(false); msCul._suppress(false); msDir._suppress(false); msPol._suppress(false); msDel._suppress(false);
+    window._isRestoring = false;
 
     refreshAll();
     return true;
