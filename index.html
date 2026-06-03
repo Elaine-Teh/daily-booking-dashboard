@@ -641,7 +641,7 @@ function buildSummary(data) {
 
     tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
     tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<td></td><td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
@@ -661,7 +661,7 @@ function buildSummary(data) {
 
       tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
       tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
-      tbody += '<td></td><td></td><td></td><td></td>';
+      tbody += '<td></td><td></td><td></td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
@@ -685,29 +685,17 @@ function buildSummary(data) {
         polGroups[polKey].weight  += c.weight_sum;
       });
 
-      Object.keys(polGroups).sort().forEach(function(polKey) {
-        var pg = polGroups[polKey];
-        // Render detail rows for this POL (no ETA column on detail rows)
-        pg.rows.forEach(function(c) {
-          var cFEU = c.ft40_sum + c.ft40rf_sum;
-          tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
-          tbody += '<td></td><td></td>';
-          tbody += '<td>' + escapeHtml(c.pol) + '</td>';
-          tbody += '<td>' + escapeHtml(c.del) + '</td>';
-          tbody += '<td></td>';  // ETA column empty for detail rows
-          tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
-          var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
-          tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
-          tbody += '</tr>';
-          totalRows++;
-        });
+      // Sort POL groups by ETA date (earliest first, empty ETA at end)
+      var polKeys = Object.keys(polGroups).sort(function(a,b) {
+        var ea = polGroups[a].eta || '9999-99-99';
+        var eb = polGroups[b].eta || '9999-99-99';
+        return ea.localeCompare(eb);
+      });
 
-        // POL TOTAL row: only show if >1 DEL under this POL
+      polKeys.forEach(function(polKey) {
+        var pg = polGroups[polKey];
+
+        // POL TOTAL row on TOP (only show if >1 DEL under this POL)
         if (pg.rows.length > 1) {
           var pgFEU = pg.ft40 + pg.ft40rf;
           var pgAvg = pg.booking > 0 ? Math.round(pg.weight / pg.booking) : 0;
@@ -726,6 +714,26 @@ function buildSummary(data) {
           tbody += '</tr>';
           totalRows++;
         }
+
+        // Detail rows for this POL (no ETA column on detail rows)
+        pg.rows.forEach(function(c) {
+          var cFEU = c.ft40_sum + c.ft40rf_sum;
+          tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
+          tbody += '<td></td><td></td>';
+          tbody += '<td>' + escapeHtml(c.pol) + '</td>';
+          tbody += '<td>' + escapeHtml(c.del) + '</td>';
+          tbody += '<td></td>';  // ETA column empty for detail rows
+          tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
+          var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
+          tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
+          tbody += '</tr>';
+          totalRows++;
+        });
       });
     });
   });
