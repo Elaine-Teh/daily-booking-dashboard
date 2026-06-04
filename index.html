@@ -917,7 +917,7 @@ function updateCharts(data) {
   if (chartPolInst) chartPolInst.destroy();
   chartPolInst = new Chart(ctxPol, {
     type: 'bar', data: { labels: polEntries.map(function(e){return e[0]}), datasets: [{ label: 'TEU', data: polEntries.map(function(e){return e[1]}), backgroundColor: '#0f3460', borderRadius: 4 }] },
-    options: { responsive: true, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#0f3460', font: { size: 9, weight: 'bold' }, formatter: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toLocaleString(); }, offset: 2 } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } }, grace: '10%' } } }
+    options: { responsive: true, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#27ae60', font: { size: 9, weight: 'bold' }, formatter: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toLocaleString(); }, offset: 2 } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } }, grace: '10%' } } }
   });
 
   // TEU by DEL
@@ -932,7 +932,7 @@ function updateCharts(data) {
   if (chartDelInst) chartDelInst.destroy();
   chartDelInst = new Chart(ctxDel, {
     type: 'bar', data: { labels: delEntries.map(function(e){return e[0]}), datasets: [{ label: 'TEU', data: delEntries.map(function(e){return e[1]}), backgroundColor: '#e74c3c', borderRadius: 4 }] },
-    options: { responsive: true, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#0f3460', font: { size: 9, weight: 'bold' }, formatter: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toLocaleString(); }, offset: 2 } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } }, grace: '10%' } } }
+    options: { responsive: true, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#e74c3c', font: { size: 9, weight: 'bold' }, formatter: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toLocaleString(); }, offset: 2 } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } }, grace: '10%' } } }
   });
 
   // DEL Volume (Container Weight) by DEL
