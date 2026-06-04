@@ -299,7 +299,7 @@ Chart.defaults.font.size = 11;
 Chart.register(ChartDataLabels);
 
 // AUTO-REFRESH
-var DATA_VERSION = "20260604180918";
+var DATA_VERSION = "20260604181022";
 var POLL_MS = 15000;
 setInterval(function() {
   fetch("version.txt?_=" + Date.now(), {cache: "reload"})
@@ -362,11 +362,7 @@ var EMBEDDED_GZ_DATA = "H4sICJY8IWoC/2RiX2RhdGEuanNvbgDsvVly40i2LToVt3pmWRFmIRa8
     vis('Bytes ready: ' + bytes.length);
 
     vis('Decompressing gzip...');
-    var blob = new Blob([bytes]);
-    var ds = new DecompressionStream('gzip');
-    var decompressedStream = blob.stream().pipeThrough(ds);
-
-    new Response(decompressedStream).text().then(function(jsonText) {
+    var jsonText = pako.ungzip(bytes, { to: 'string' });
       var elapsed = ((Date.now() - loadStart) / 1000).toFixed(1);
       vis('Decompressed: ' + (jsonText.length/1024/1024).toFixed(1) + ' MB in ' + elapsed + 's');
       vis('Parsing JSON...');
