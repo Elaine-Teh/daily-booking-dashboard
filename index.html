@@ -575,8 +575,8 @@ Chart.defaults.font.size = 11;
 Chart.register(ChartDataLabels);
 
 // AUTO-REFRESH
-var DATA_VERSION = "20260604182236";
-var POLL_MS = 15000;
+var DATA_VERSION = "20260604182829";
+var POLL_MS = 999999999; // polling disabled
 setInterval(function() {
   fetch("version.txt?_=" + Date.now(), {cache: "reload"})
     .then(function(r) { return r.ok ? r.text() : null; })
@@ -654,7 +654,7 @@ var msLane, msPol, msDel, msCul, msDir;
 
 
 
-  fetch('db_data.json?ts=' + Date.now(), {signal: controller.signal, cache: 'no-store'})
+  fetch("db_data.json" + Date.now(), {signal: controller.signal, cache: 'no-store'})
 
     .then(function(r) {
 
