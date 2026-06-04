@@ -380,6 +380,51 @@ var msLane, msPol, msDel, msCul, msDir;
     });
 })();
 
+// ============ AUTO-REFRESH POLLING ============
+(function() {
+  var POLL_MS = 60000;
+  var REFRESHING = false;
+  setInterval(function() {
+    if (REFRESHING) return;
+    REFRESHING = true;
+    fetch('version.txt?r=' + Date.now(), {cache: 'no-store'})
+      .then(function(r) { return r.text(); })
+      .then(function(ver) {
+        ver = ver.trim();
+        if (ver && ver !== DATA_VERSION) {
+          console.log('[auto-refresh] New data version:', ver);
+          return fetch('db_data.json?v=' + ver, {cache: 'no-store'})
+            .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(function(payload) {
+              ALL_DATA = payload.data;
+              LANE_LIST = payload.lane_list;
+              POL_LIST = payload.pol_list;
+              DEL_LIST = payload.del_list;
+              CUL_LIST = payload.cul_list;
+              DIR_LIST = payload.dir_list || ['E','N','S','W'];
+              LANE_CUL_MAP = payload.lane_cul_map || {};
+              LANE_POL_MAP = payload.lane_pol_map || {};
+              LANE_DEL_MAP = payload.lane_del_map || {};
+              LANE_ETD_MAP = payload.lane_etd_map || {};
+              // reset filters to reflect new data
+              if (msLane) msLane.setAll(LANE_LIST);
+              if (msPol) msPol.setAll(POL_LIST);
+              if (msDel) msDel.setAll(DEL_LIST);
+              if (msCul) msCul.setAll(CUL_LIST);
+              initETDRange();
+              initETBRange();
+              cascadeFilters();
+              refreshAll();
+              DATA_VERSION = ver;
+              console.log('[auto-refresh] Done');
+            });
+        }
+      })
+      .catch(function(e) { console.warn('[auto-refresh] Poll failed:', e.message); })
+      .finally(function() { REFRESHING = false; });
+  }, POLL_MS);
+})();
+
 // ============ MULTI-SELECT ENGINE ============
 function buildMultiSelect(id, items, onChange, label) {
   label = label || id;
