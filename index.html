@@ -303,6 +303,7 @@ var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP, LANE_ETD_MAP, LANE_ETB_MAP;
 var GLOBAL_ETD_MIN, GLOBAL_ETD_MAX;
 var GLOBAL_ETB_MIN, GLOBAL_ETB_MAX;
 var SUL_YN_FILTER = 'ALL';
+var DATA_VERSION = '20260604135000';
 var msLane, msPol, msDel, msCul, msDir;
 
 // ============ DATA LOADING ============
@@ -325,7 +326,7 @@ var msLane, msPol, msDel, msCul, msDir;
     controller.abort();
   }, 30000);
 
-  fetch('db_data.json?ts=' + Date.now(), {signal: controller.signal, cache: 'no-store'})
+  fetch('db_data.json?v=' + DATA_VERSION, {signal: controller.signal, cache: 'no-store'})
     .then(function(r) {
       clearTimeout(timeoutId);
       if (!r.ok) throw new Error('HTTP ' + r.status);
