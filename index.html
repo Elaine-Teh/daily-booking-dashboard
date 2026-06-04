@@ -48,6 +48,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .etd-filter,.etb-filter{display:flex;align-items:center;gap:6px;background:#f5f6fa;border:1px solid #ddd;border-radius:6px;padding:6px 10px}
 .etd-filter label,.etb-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
 .etd-filter input[type=date],.etb-filter input[type=date]{border:1px solid #ddd;border-radius:4px;padding:4px 8px;font-size:13px;outline:none;background:#fff;cursor:pointer}
+/* SUL_YN Segmented Button */
+.sul-filter{display:flex;align-items:center;gap:6px}
+.sul-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+.sul-segmented{display:flex;border:1px solid #ddd;border-radius:6px;overflow:hidden}
+.sul-segmented button{padding:6px 12px;font-size:12px;font-weight:500;border:none;background:#f5f6fa;color:#666;cursor:pointer;transition:.15s;border-right:1px solid #ddd}
+.sul-segmented button:last-child{border-right:none}
+.sul-segmented button:hover{background:#e8eaed}
+.sul-segmented button.active{background:#0f3460;color:#fff}
 .etd-filter input[type=date]:focus,.etb-filter input[type=date]:focus{border-color:#0f3460}
 .etd-filter .etd-sep,.etb-filter .etd-sep{color:#999;font-size:13px}
 
@@ -196,6 +204,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         </div>
       </div>
     </div>
+    <div class="sul-filter" id="sulFilter">
+      <label>Type</label>
+      <div class="sul-segmented">
+        <button id="sulAll" class="active" onclick="setSulFilter('ALL')">全部</button>
+        <button id="sulCul" onclick="setSulFilter('CUL')">CUL</button>
+        <button id="sulSul" onclick="setSulFilter('SUL')">SUL</button>
+      </div>
+    </div>
     <div class="etd-filter">
       <label>ETD</label>
       <input type="date" id="etdFrom" title="ETD From">
@@ -283,6 +299,7 @@ var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST, DIR_LIST;
 var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP, LANE_ETD_MAP, LANE_ETB_MAP;
 var GLOBAL_ETD_MIN, GLOBAL_ETD_MAX;
 var GLOBAL_ETB_MIN, GLOBAL_ETB_MAX;
+var SUL_YN_FILTER = 'ALL';
 var msLane, msPol, msDel, msCul, msDir;
 
 // ============ DATA LOADING ============
@@ -489,6 +506,9 @@ function getFilteredData() {
     if (etdTo && r.etd && r.etd > etdTo) { if (isBzcf) bzcfLost.etd++; return false; }
     if (etbFrom && r.etb && r.etb < etbFrom) { if (isBzcf) bzcfLost.eta++; return false; } else { etaPass++; }
     if (etbTo && r.etb && r.etb > etbTo) { if (isBzcf) bzcfLost.eta++; return false; }
+    // SUL_YN filter: ALL=no filter, CUL=N(Internal), SUL=Y(External)
+    if (SUL_YN_FILTER === 'CUL' && r.sul_yn !== 'N') { if (isBzcf) bzcfLost.eta++; return false; }
+    if (SUL_YN_FILTER === 'SUL' && r.sul_yn !== 'Y') { if (isBzcf) bzcfLost.eta++; return false; }
     if (isBzcf) bzcfLost.pass++;
     totalPass++;
     return true;
@@ -556,6 +576,8 @@ function cascadeFilters() {
     if (etdTo && r.etd > etdTo) return;
     if (etbFrom && r.etb && r.etb < etbFrom) return;
     if (etbTo && r.etb && r.etb > etbTo) return;
+    if (SUL_YN_FILTER === 'CUL' && r.sul_yn !== 'N') return;
+    if (SUL_YN_FILTER === 'SUL' && r.sul_yn !== 'Y') return;
     if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
     if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
     if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
@@ -939,6 +961,7 @@ function saveFilterState() {
       etdTo: document.getElementById('etdTo').value,
       etbFrom: document.getElementById('etbFrom').value,
       etbTo: document.getElementById('etbTo').value,
+      sulYn: SUL_YN_FILTER,
       detailSearch: document.getElementById('detailSearch').value
     };
     localStorage.setItem('db_filter_state', JSON.stringify(state));
@@ -967,6 +990,14 @@ function restoreFilterState() {
     if (state.etdTo) document.getElementById('etdTo').value = state.etdTo;
     if (state.etbFrom) document.getElementById('etbFrom').value = state.etbFrom;
     if (state.etbTo) document.getElementById('etbTo').value = state.etbTo;
+
+    // Step 2.5: Restore SUL_YN
+    if (state.sulYn) {
+      SUL_YN_FILTER = state.sulYn;
+      document.getElementById('sulAll').className = (SUL_YN_FILTER === 'ALL') ? 'active' : '';
+      document.getElementById('sulCul').className = (SUL_YN_FILTER === 'CUL') ? 'active' : '';
+      document.getElementById('sulSul').className = (SUL_YN_FILTER === 'SUL') ? 'active' : '';
+    }
 
     // Step 3: Manually set saved CUL/POL/DEL/DIR selections BEFORE cascade
     if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
@@ -1020,6 +1051,16 @@ function restoreFilterState() {
 }
 
 // ============ MAIN REFRESH ============
+function setSulFilter(val) {
+  SUL_YN_FILTER = val;
+  document.getElementById('sulAll').className = (val === 'ALL') ? 'active' : '';
+  document.getElementById('sulCul').className = (val === 'CUL') ? 'active' : '';
+  document.getElementById('sulSul').className = (val === 'SUL') ? 'active' : '';
+  cascadeFilters();
+  refreshAll();
+  saveFilterState();
+}
+
 function refreshAll() {
   var data = getFilteredData();
   updateKPIs(data);
@@ -1039,6 +1080,13 @@ document.getElementById('resetAll').onclick = function() {
   msPol.setAll();
   msDel.setAll();
   msDir.setAll();
+  // Reset SUL_YN
+  if (SUL_YN_FILTER !== 'ALL') {
+    SUL_YN_FILTER = 'ALL';
+    document.getElementById('sulAll').className = 'active';
+    document.getElementById('sulCul').className = '';
+    document.getElementById('sulSul').className = '';
+  }
   var fromEl = document.getElementById('etdFrom');
   var toEl = document.getElementById('etdTo');
   fromEl.value = ''; toEl.value = '';
