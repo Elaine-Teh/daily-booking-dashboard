@@ -683,7 +683,7 @@ function buildSummary(data) {
 
     tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
     tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<td></td><td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
@@ -703,7 +703,7 @@ function buildSummary(data) {
 
       tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
       tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
-      tbody += '<td></td><td></td>';
+      tbody += '<td></td><td></td><td></td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
