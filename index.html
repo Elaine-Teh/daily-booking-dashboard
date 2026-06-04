@@ -133,6 +133,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <div id="loadingArea" style="padding:80px 20px;text-align:center;color:#888;font-size:16px">
+  <div id="diagSteps" style="background:#16213e;color:#e0e0e0;font-family:Consolas,monospace;font-size:11px;padding:10px 16px;border-radius:6px;margin-bottom:8px;text-align:left;max-width:450px;line-height:1.6;border:1px solid #0f3460;display:inline-block"></div>
   <div style="margin-bottom:12px">⏳ Loading 30MB data, please wait... (30MB, please wait up to 2 minutes)</div>
   <div style="font-size:13px;color:#bbb">Fetching db_data.json</div>
 </div>
@@ -314,7 +315,7 @@ var sulFilter = "ALL";
 function setSulFilter(val, btn) {
   sulFilter = val;
   document.querySelectorAll("#sulSeg button").forEach(function(b){b.classList.remove("active")});
-  btn.classList.add("active"); refreshAll(); saveFilterState();
+  btn.classList.add("active"); vis('Step7: refreshAll...'); try{refreshAll();vis('Step7 DONE!');}catch(e){vis('Step7 CRASH: '+e.message);throw e;} saveFilterState();
 }
 document.querySelectorAll("#sulSeg button").forEach(function(b){
   b.onclick = function(){ setSulFilter(this.dataset.sul, this); };
@@ -330,13 +331,16 @@ var msLane, msPol, msDel, msCul, msDir;
 
 // ============ DATA LOADING ============
 (function loadData() {
-  var loadingEl = document.getElementById('loadingArea');
+  
+var diagSteps=document.getElementById("diagSteps");function vis(msg){var t=new Date().toISOString().substr(11,8);if(diagSteps)diagSteps.innerHTML+="<div>&#9656; ["+t+"] "+msg+"</div>";}
+var loadingEl = document.getElementById('loadingArea');
   var contentEl = document.getElementById('dashboardContent');
   var errorMsg = document.getElementById('errorMsg');
   var loadStart = Date.now();
 
   function showError(msg, detail) {
-    loadingEl.style.display = 'none';
+    vis('Step2: Show dashboard');
+      loadingEl.style.display = 'none';
     errorMsg.style.display = 'block';
     errorMsg.innerHTML = '<b>Failed to load data</b><br>' + msg +
       (detail ? '<br><span style="font-size:12px;color:#999">' + detail + '</span>' : '');
@@ -356,7 +360,9 @@ var msLane, msPol, msDel, msCul, msDir;
     })
     .then(function(payload) {
       console.log('[D] Step 1: Setting global vars...');
+      vis('Step1: Data='+payload.data.length+' records');
       ALL_DATA = payload.data;
+      vis('Step1b: Lanes='+payload.lane_list.length);
       LANE_LIST = payload.lane_list;
       POL_LIST = payload.pol_list;
       DEL_LIST = payload.del_list;
@@ -366,6 +372,7 @@ var msLane, msPol, msDel, msCul, msDir;
       LANE_POL_MAP = payload.lane_pol_map || {};
       LANE_DEL_MAP = payload.lane_del_map || {};
       LANE_ETD_MAP = payload.lane_etd_map || {};
+      vis('Step1c: ETB map loaded');
       LANE_ETB_MAP = payload.lane_etb_map || {};
       console.log('[D] Step 1 done. Records:', ALL_DATA ? ALL_DATA.length : 0);
 
@@ -390,16 +397,16 @@ var msLane, msPol, msDel, msCul, msDir;
       document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
 
       console.log('[D] Step 3: initFilters...');
-      try { initFilters(); console.log('[D] Step 3 done'); }
+      try { vis('Step3: initFilters...'); try{initFilters();vis('Step3 OK');}catch(e){vis('Step3 FAIL: '+e.message);throw e;} console.log('[D] Step 3 done'); }
       catch(e) { console.error('[D] initFilters ERROR:', e); throw e; }
       console.log('[D] Step 4: initETDRange...');
-      try { initETDRange(payload.etd_min, payload.etd_max); console.log('[D] Step 4 done'); }
+      try { vis('Step4: initETDRange...'); try{initETDRange(payload.etd_min, payload.etd_max);vis('Step4 OK');}catch(e){vis('Step4 FAIL: '+e.message);throw e;} console.log('[D] Step 4 done'); }
       catch(e) { console.error('[D] initETDRange ERROR:', e); throw e; }
       console.log('[D] Step 5: initETARange...');
-      try { initETARange(payload.etb_min, payload.etb_max); console.log('[D] Step 5 done'); }
+      try { vis('Step5: initETARange...'); try{initETARange(payload.etb_min, payload.etb_max);vis('Step5 OK');}catch(e){vis('Step5 FAIL: '+e.message);throw e;} console.log('[D] Step 5 done'); }
       catch(e) { console.error('[D] initETARange ERROR:', e); throw e; }
       console.log('[D] Step 6: restoreFilterState...');
-      try { restoreFilterState(); console.log('[D] Step 6 done'); }
+      try { vis('Step6: restoreFilterState...'); try{restoreFilterState();vis('Step6 OK');}catch(e){vis('Step6 FAIL: '+e.message);} console.log('[D] Step 6 done'); }
       catch(e) { console.error('[D] restoreFilterState ERROR:', e); console.log('[D] Continuing despite error...'); }
       console.log('[D] Step 7: refreshAll...');
       try { refreshAll(); console.log('[D] Step 7 done - DASHBOARD SHOULD BE VISIBLE'); }
