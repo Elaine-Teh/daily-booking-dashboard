@@ -294,6 +294,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 Chart.defaults.font.size = 11;
 
+Chart.register(ChartDataLabels);
+
+// AUTO-REFRESH
+var DATA_VERSION = "20260604135653";
+var POLL_MS = 15000;
+setInterval(function() {
+  fetch("version.txt?_=" + Date.now(), {cache: "reload"})
+    .then(function(r) { return r.ok ? r.text() : null; })
+    .then(function(ver) {
+      if (ver && ver.trim() !== DATA_VERSION) {
+        DATA_VERSION = ver.trim(); location.reload();
+      }
+    }).catch(function(){});
+}, POLL_MS);
+
+// SUL_YN FILTER
+var sulFilter = "ALL";
+function setSulFilter(val, btn) {
+  sulFilter = val;
+  document.querySelectorAll("#sulSeg button").forEach(function(b){b.classList.remove("active")});
+  btn.classList.add("active"); refreshAll(); saveFilterState();
+}
+document.querySelectorAll("#sulSeg button").forEach(function(b){
+  b.onclick = function(){ setSulFilter(this.dataset.sul, this); };
+});
+
+
+
 var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST, DIR_LIST;
 var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP, LANE_ETD_MAP, LANE_ETB_MAP;
 var GLOBAL_ETD_MIN, GLOBAL_ETD_MAX;
@@ -491,6 +519,25 @@ function getFilteredData() {
 
   var lanePass = 0, culPass = 0, polPass = 0, delPass = 0, dirPass = 0, etdPass = 0, etaPass = 0, totalPass = 0;
   // BZCF2621W specific debug
+  var culEtbMap = {};
+  ALL_DATA.forEach(function(r) {
+    if(!culEtbMap[r.cul_code]) culEtbMap[r.cul_code] = {};
+    if(r.etb) { var pm = culEtbMap[r.cul_code]; if(!pm[r.pol] || r.etb < pm[r.pol]) pm[r.pol] = r.etb; }
+  });
+  var hasEtbFilter = Boolean(etbFrom || etbTo);
+  var etbCheckedCuls = {};
+  function culInEtbRange(cul) {
+    if(!hasEtbFilter) return true;
+    var c = etbCheckedCuls[cul]; if(c !== undefined) return c;
+    var pm = culEtbMap[cul] || {}; var es = Object.values(pm).filter(function(e){return e});
+    if(!es.length) { etbCheckedCuls[cul] = false; return false; }
+    for(var i=0; i<es.length; i++) {
+      if((!etbFrom || es[i]>=etbFrom) && (!etbTo || es[i]<=etbTo)) {
+        etbCheckedCuls[cul] = true; return true;
+      }
+    }
+    etbCheckedCuls[cul] = false; return false;
+  }
   var bzcfLost = {lane:0, pol:0, del:0, cul:0, dir:0, etd:0, etb:0, pass:0};
     var result = ALL_DATA.filter(function(r) {
     // SUL_YN filter
@@ -616,7 +663,29 @@ function cascadeFilters() {
     polPool.sort(); delPool.sort();
     window._culEtbCache = null;
   }
-  culPool.sort(); polPool.sort(); delPool.sort();
+  if (etbFrom || etbTo) {
+    var _fc = {}, _css = {};
+    Object.keys(culSet).forEach(function(cul) {
+      ALL_DATA.forEach(function(r) {
+        if(r.cul_code!==cul || !r.etb) return;
+        if(!_fc[cul] && (!etbFrom||r.etb>=etbFrom) && (!etbTo||r.etb<=etbTo)) _fc[cul]=true;
+      });
+    });
+    var _cp=[]; var _pss={}; var _dp=[]; var _dss={}; culPool=[];
+    ALL_DATA.forEach(function(r) {
+      if(!_fc[r.cul_code]) return;
+      if(!allLanes && !laneSel.has(r.lane)) return;
+      if(etdFrom && r.etd<etdFrom) return;
+      if(etdTo && r.etd>etdTo) return;
+      if(!_css[r.cul_code]) { _css[r.cul_code]=true; culPool.push(r.cul_code); }
+      if(!_pss[r.pol]) { _pss[r.pol]=true; _cp.push(r.pol); }
+      if(!_dss[r.del_port]) { _dss[r.del_port]=true; _dp.push(r.del_port); }
+    });
+    culPool.sort(); _cp.sort(); _dp.sort();
+    msCul.updateItems(culPool); msPol.updateItems(_cp); msDel.updateItems(_dp);
+    if(!window._isRestoring) { msCul.setAll(); msPol.setAll(); msDel.setAll(); }
+  } else {
+    culPool.sort(); polPool.sort(); delPool.sort();
 
   msCul.updateItems(culPool);
   msPol.updateItems(polPool);
