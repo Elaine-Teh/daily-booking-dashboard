@@ -297,7 +297,7 @@ Chart.defaults.font.size = 11;
 Chart.register(ChartDataLabels);
 
 // AUTO-REFRESH
-var DATA_VERSION = "20260604135653";
+var DATA_VERSION = "20260604140315";
 var POLL_MS = 15000;
 setInterval(function() {
   fetch("version.txt?_=" + Date.now(), {cache: "reload"})
