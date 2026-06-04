@@ -382,18 +382,18 @@ var msLane, msPol, msDel, msCul, msDir;
 
 // ============ AUTO-REFRESH POLLING ============
 (function() {
-  var POLL_MS = 60000;
+  var POLL_MS = 15000;
   var REFRESHING = false;
   setInterval(function() {
     if (REFRESHING) return;
     REFRESHING = true;
-    fetch('version.txt?r=' + Date.now(), {cache: 'no-store'})
+    fetch('version.txt?_=' + Date.now(), {cache: 'reload'})
       .then(function(r) { return r.text(); })
       .then(function(ver) {
         ver = ver.trim();
         if (ver && ver !== DATA_VERSION) {
           console.log('[auto-refresh] New data version:', ver);
-          return fetch('db_data.json?v=' + ver, {cache: 'no-store'})
+          return fetch('db_data.json?v=' + ver, {cache: 'reload'})
             .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
             .then(function(payload) {
               ALL_DATA = payload.data;
