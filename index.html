@@ -236,7 +236,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="kpi-card"><div class="kpi-value" id="kpiBooking">0</div><div class="kpi-label">Booking Count</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpiWeight">0</div><div class="kpi-label">Container Weight</div></div>
   </div>
-  <div id="debugPanel" style="display:none;background:#fff3cd;color:#856404;padding:8px 12px;border-radius:6px;margin:8px 0;font-size:12px;font-family:monospace;"></div>
+
+
 
   <!-- SUMMARY TABLE -->
   <div class="summary-section">
@@ -353,9 +354,6 @@ var msLane, msPol, msDel, msCul, msDir;
           console.log('[Data Check] BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf20);
         }
       })();
-      var debugEl = document.getElementById('debugPanel');
-      if (debugEl) { debugEl.innerHTML = '<b>Data Check:</b> ' + checkMsg; debugEl.style.display = 'block'; }
-
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
       document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
@@ -527,13 +525,6 @@ function getFilteredData() {
   console.log('After eta filter:', etaPass);
   console.log('Final result:', totalPass);
   console.log('====================');
-
-  // Inline debug panel update
-  var debugEl = document.getElementById('debugPanel');
-  if (debugEl) {
-    debugEl.innerHTML = '<b>Debug:</b> lane=' + lanePass + ' pol=' + polPass + ' del=' + delPass + ' cul=' + culPass + ' dir=' + dirPass + ' etd=' + etdPass + ' eta=' + etaPass + ' <b style="color:#0f3460">final=' + totalPass + '</b>';
-    debugEl.style.display = 'block';
-  }
 
   return result;
 }
