@@ -478,54 +478,57 @@ function getFilteredData() {
   var etbFrom = document.getElementById('etbFrom').value;
   var etbTo = document.getElementById('etbTo').value;
 
-  // Debug logging to console
-  console.log('=== Filter Debug ===');
-  console.log('laneSel size:', laneSel.size, 'sample:', Array.from(laneSel).slice(0,3));
-  console.log('culSel size:', culSel.size, 'sample:', Array.from(culSel).slice(0,3));
-  console.log('polSel size:', polSel.size, 'sample:', Array.from(polSel).slice(0,3));
-  console.log('delSel size:', delSel.size, 'sample:', Array.from(delSel).slice(0,3));
-  console.log('dirSel size:', dirSel.size, 'sample:', Array.from(dirSel).slice(0,4));
-  console.log('etdFrom:', etdFrom, 'etdTo:', etdTo);
-  console.log('etbFrom:', etbFrom, 'etbTo:', etbTo);
-  console.log('Total ALL_DATA:', ALL_DATA.length);
 
-  var lanePass = 0, culPass = 0, polPass = 0, delPass = 0, dirPass = 0, etdPass = 0, etaPass = 0, totalPass = 0;
-  // BZCF2621W specific debug
-  var bzcfLost = {lane:0, pol:0, del:0, cul:0, dir:0, etd:0, etb:0, pass:0};
-  var result = ALL_DATA.filter(function(r) {
-    var isBzcf = (r.cul_code === 'BZCF2621W');
-    if (!laneSel.has(r.lane)) { if (isBzcf) bzcfLost.lane++; return false; } else { lanePass++; }
-    if (!polSel.has(r.pol)) { if (isBzcf) bzcfLost.pol++; return false; } else { polPass++; }
-    if (!delSel.has(r.del_port)) { if (isBzcf) bzcfLost.del++; return false; } else { delPass++; }
-    if (!culSel.has(r.cul_code)) { if (isBzcf) bzcfLost.cul++; return false; } else { culPass++; }
-    var recDir = r.direction || '';
-    if (recDir && !dirSel.has(recDir)) { if (isBzcf) bzcfLost.dir++; return false; } else { dirPass++; }
-    if (etdFrom && r.etd && r.etd < etdFrom) { if (isBzcf) bzcfLost.etd++; return false; } else { etdPass++; }
-    if (etdTo && r.etd && r.etd > etdTo) { if (isBzcf) bzcfLost.etd++; return false; }
-    if (etbFrom && r.etb && r.etb < etbFrom) { if (isBzcf) bzcfLost.eta++; return false; } else { etaPass++; }
-    if (etbTo && r.etb && r.etb > etbTo) { if (isBzcf) bzcfLost.eta++; return false; }
-    // SUL_YN filter: ALL=no filter, CUL=N(Internal), SUL=Y(External)
-    if (SUL_YN_FILTER === 'CUL' && r.sul_yn !== 'N') { if (isBzcf) bzcfLost.eta++; return false; }
-    if (SUL_YN_FILTER === 'SUL' && r.sul_yn !== 'Y') { if (isBzcf) bzcfLost.eta++; return false; }
-    if (isBzcf) bzcfLost.pass++;
-    totalPass++;
-    return true;
-  });
-  if (bzcfLost.pass > 0 || bzcfLost.lane > 0 || bzcfLost.pol > 0 || bzcfLost.del > 0 || bzcfLost.dir > 0 || bzcfLost.etd > 0 || bzcfLost.eta > 0) {
-    console.log('[BZCF2621W] Total in raw:', ALL_DATA.filter(function(r){return r.cul_code==='BZCF2621W'}).length);
-    console.log('[BZCF2621W] Filtered: lane=', bzcfLost.lane, 'pol=', bzcfLost.pol, 'del=', bzcfLost.del, 'cul=', bzcfLost.cul, 'dir=', bzcfLost.dir, 'etd=', bzcfLost.etd, 'eta=', bzcfLost.eta, 'PASS=', bzcfLost.pass);
+
+  // ETB filter: CUL-level — show entire CUL ONLY if at least one of its POLs has an ETB date within range
+  var etbActive = !!(etbFrom || etbTo);
+  var etbVisibleCuls = null;
+  if (etbActive) {
+    // Step 1: Build unique CUL -> {POL: earliest ETB} map from ALL_DATA
+    var _culPolEtb = {};
+    for (var i = 0; i < ALL_DATA.length; i++) {
+      var _r = ALL_DATA[i];
+      if (!_r.cul_code || !_r.pol || !_r.etb) continue;
+      if (!_culPolEtb[_r.cul_code]) _culPolEtb[_r.cul_code] = {};
+      // Keep earliest ETB per (CUL,POL)
+      var _prev = _culPolEtb[_r.cul_code][_r.pol];
+      if (!_prev || _r.etb < _prev) _culPolEtb[_r.cul_code][_r.pol] = _r.etb;
+    }
+    // Step 2: A CUL is visible ONLY if at least one of its POLs has ETB in range
+    etbVisibleCuls = new Set();
+    var _culCodes = Object.keys(_culPolEtb);
+    for (var _c = 0; _c < _culCodes.length; _c++) {
+      var _cul = _culCodes[_c];
+      var _pols = _culPolEtb[_cul];
+      var _polKeys = Object.keys(_pols);
+      var _inRange = false;
+      for (var _p = 0; _p < _polKeys.length; _p++) {
+        var _etb = _pols[_polKeys[_p]];
+        if (etbFrom && _etb < etbFrom) continue;
+        if (etbTo && _etb > etbTo) continue;
+        _inRange = true;
+        break;
+      }
+      if (_inRange) etbVisibleCuls.add(_cul);
+    }
   }
 
-  console.log('After lane filter:', lanePass);
-  console.log('After pol filter:', polPass);
-  console.log('After del filter:', delPass);
-  console.log('After cul filter:', culPass);
-  console.log('After dir filter:', dirPass);
-  console.log('After etd filter:', etdPass);
-  console.log('After eta filter:', etaPass);
-  console.log('Final result:', totalPass);
-  console.log('====================');
-
+  var result = ALL_DATA.filter(function(r) {
+    if (!laneSel.has(r.lane)) { return false; }
+    if (!polSel.has(r.pol)) { return false; }
+    if (!delSel.has(r.del_port)) { return false; }
+    if (!culSel.has(r.cul_code)) { return false; }
+    var recDir = r.direction || '';
+    if (recDir && !dirSel.has(recDir)) { return false; }
+    if (etdFrom && r.etd && r.etd < etdFrom) { return false; }
+    if (etdTo && r.etd && r.etd > etdTo) { return false; }
+    // ETB: CUL-level — show ALL records of a CUL if ANY POL's ETB is in range
+    if (etbActive && !etbVisibleCuls.has(r.cul_code)) { return false; }
+    // SUL_YN filter: ALL=no filter, CUL=N(Internal), SUL=Y(External)
+    if (SUL_YN_FILTER === 'CUL' && r.sul_yn !== 'N') { return false; }
+    if (SUL_YN_FILTER === 'SUL' && r.sul_yn !== 'Y') { return false; }
+    return true;
+  });
   return result;
 }
 
@@ -558,6 +561,38 @@ function cascadeFilters() {
     return;
   }
 
+  // Pre-compute ETB CUL-level visible set for cascading
+  var _etbActive = !!(etbFrom || etbTo);
+  var _etbVisibleCuls = null;
+  if (_etbActive) {
+    // Step 1: Build unique CUL -> {POL: earliest ETB} map
+    var _culPolEtb = {};
+    for (var _i = 0; _i < ALL_DATA.length; _i++) {
+      var _r = ALL_DATA[_i];
+      if (!_r.cul_code || !_r.pol || !_r.etb) continue;
+      if (!_culPolEtb[_r.cul_code]) _culPolEtb[_r.cul_code] = {};
+      var _prev = _culPolEtb[_r.cul_code][_r.pol];
+      if (!_prev || _r.etb < _prev) _culPolEtb[_r.cul_code][_r.pol] = _r.etb;
+    }
+    // Step 2: CUL visible only if at least one POL has ETB in range
+    _etbVisibleCuls = new Set();
+    var _culCodes = Object.keys(_culPolEtb);
+    for (var _c = 0; _c < _culCodes.length; _c++) {
+      var _cul = _culCodes[_c];
+      var _pols = _culPolEtb[_cul];
+      var _polKeys = Object.keys(_pols);
+      var _inRange = false;
+      for (var _p = 0; _p < _polKeys.length; _p++) {
+        var _etb = _pols[_polKeys[_p]];
+        if (etbFrom && _etb < etbFrom) continue;
+        if (etbTo && _etb > etbTo) continue;
+        _inRange = true;
+        break;
+      }
+      if (_inRange) _etbVisibleCuls.add(_cul);
+    }
+  }
+
   // Filter ALL_DATA by current Lane + ETD selection
   var culPool = [], polPool = [], delPool = [];
   var culSet = {}, polSet = {}, delSet = {};
@@ -565,8 +600,8 @@ function cascadeFilters() {
     if (!allLanes && !laneSel.has(r.lane)) return;
     if (etdFrom && r.etd < etdFrom) return;
     if (etdTo && r.etd > etdTo) return;
-    if (etbFrom && r.etb && r.etb < etbFrom) return;
-    if (etbTo && r.etb && r.etb > etbTo) return;
+    // ETB: CUL-level — include in pools only if CUL has ANY POL ETB in range
+    if (_etbActive && !_etbVisibleCuls.has(r.cul_code)) return;
     if (SUL_YN_FILTER === 'CUL' && r.sul_yn !== 'N') return;
     if (SUL_YN_FILTER === 'SUL' && r.sul_yn !== 'Y') return;
     if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
