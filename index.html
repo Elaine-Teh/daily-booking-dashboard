@@ -87,6 +87,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
 .summary-table tr.detail-row.hidden{display:none}
 .summary-table .pol-total-row td{background:#e8f0fe;color:#0f3460;font-weight:700;border-top:2px solid #3366cc;font-size:12px;padding-left:46px}
+.pol-total-row{cursor:pointer}.pol-total-row .expand-icon{font-size:10px;margin-right:4px}
+.pol-collapsed{display:none}
 .summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-table .highlight{color:#0f3460;font-weight:600}
 
@@ -783,9 +785,10 @@ function buildSummary(data) {
         var pg = polGroups[pol];
         if (pg.dels.length > 1) {
           var pgFEU = pg.ft40 + pg.ft40rf;
-          tbody += '<tr class="pol-total-row detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
+          var polGroupId = escapeHtml(lane) + '|||' + escapeHtml(ck) + '|||' + escapeHtml(pol);
+          tbody += '<tr class="pol-total-row detail-row hidden" data-parent="' + escapeHtml(lane) + '" data-pol-group="' + polGroupId + '" onclick="togglePolGroup(this);event.stopPropagation()">';
           tbody += '<td></td><td></td>';
-          tbody += '<td><b>TOTAL ' + escapeHtml(pol) + '</b></td>';
+          tbody += '<td><span class="expand-icon">▶</span> <b>TOTAL ' + escapeHtml(pol) + '</b></td>';
           tbody += '<td></td>';
           tbody += '<td>' + (pg.etb || '') + '</td>';
           tbody += '<td class="num">' + pg.ft20.toLocaleString() + '</td>';
@@ -800,7 +803,9 @@ function buildSummary(data) {
         }
         pg.dels.forEach(function(c) {
           var cFEU = c.ft40_sum + c.ft40rf_sum;
-          tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
+          var rowClass = 'pol-detail detail-row hidden' + (pg.dels.length > 1 ? ' pol-collapsed' : '');
+          var polAttr = (pg.dels.length > 1) ? (' data-pol-group="' + escapeHtml(lane) + '|||' + escapeHtml(ck) + '|||' + escapeHtml(pol) + '"') : '';
+          tbody += '<tr class="' + rowClass + '" data-parent="' + escapeHtml(lane) + '"' + polAttr + '>';
           tbody += '<td></td><td></td>';
           tbody += '<td>' + escapeHtml(c.pol) + '</td>';
           tbody += '<td>' + escapeHtml(c.del) + '</td>';
@@ -835,6 +840,17 @@ function toggleLane(row) {
   var visible = row.classList.contains('expanded');
   document.querySelectorAll('[data-parent="' + lane + '"]').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
+  });
+}
+
+function togglePolGroup(row) {
+  var groupId = row.dataset.polGroup;
+  var isExpanded = row.classList.contains('pol-expanded');
+  row.classList.toggle('pol-expanded');
+  var expandIcon = row.querySelector('.expand-icon');
+  if (expandIcon) expandIcon.textContent = isExpanded ? '\u25B6' : '\u25BC';
+  document.querySelectorAll('[data-pol-group="' + groupId + '"].pol-detail').forEach(function(r) {
+    r.classList.toggle('pol-collapsed', isExpanded);
   });
 }
 
