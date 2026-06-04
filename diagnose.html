@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Diagnostic</title>
+<style>
+body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; }
+#log { background: #16213e; padding: 15px; border-radius: 5px; max-height: 80vh; overflow-y: auto; }
+.log-ok { color: #4caf50; }
+.log-err { color: #f44336; }
+.log-info { color: #2196f3; }
+</style></head><body>
+<h2>Data Load Diagnostic</h2>
+<div id="status">Testing...</div>
+<div id="log"></div>
+<script>
+function log(msg, type) {
+  var el = document.getElementById('log');
+  var cls = 'log-' + (type || 'info');
+  el.innerHTML += '<div class="' + cls + '">[' + new Date().toISOString().substr(11,8) + '] ' + msg + '</div>';
+  el.scrollTop = el.scrollHeight;
+}
+
+log('Starting diagnostic...', 'info');
+
+// Test 1: Can we reach the file?
+var loadStart = Date.now();
+var controller = new AbortController();
+var timeoutId = setTimeout(function() { controller.abort(); }, 120000);
+
+log('Fetching db_data.json (30MB)...', 'info');
+document.getElementById('status').textContent = 'Fetching...';
+
+fetch('db_data.json?ts=' + Date.now(), {signal: controller.signal, cache: 'reload'})
+  .then(function(r) {
+    clearTimeout(timeoutId);
+    var elapsed = ((Date.now() - loadStart) / 1000).toFixed(1);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    log('Response OK after ' + elapsed + 's, Content-Length: ' + (r.headers.get('Content-Length') || 'unknown'), 'ok');
+    log('Parsing JSON...', 'info');
+    return r.json();
+  })
+  .then(function(payload) {
+    var totalElapsed = ((Date.now() - loadStart) / 1000).toFixed(1);
+    log('JSON parsed! Total time: ' + totalElapsed + 's', 'ok');
+    log('Records: ' + (payload.data ? payload.data.length : 'N/A'), 'ok');
+    log('Lanes: ' + (payload.lane_list ? payload.lane_list.length : 'N/A'), 'ok');
+    log('Generated: ' + (payload.generated_at || 'N/A'), 'ok');
+    
+    if (payload.data) {
+      log('First record sample: ' + JSON.stringify(payload.data[0]).substring(0, 200), 'info');
+    }
+    
+    // Test required functions
+    var tests = [
+      ['getFilteredData', typeof getFilteredData],
+      ['updateKPIs', typeof updateKPIs],
+      ['buildSummary', typeof buildSummary],
+      ['updateCharts', typeof updateCharts],
+      ['updateDetail', typeof updateDetail]
+    ];
+    tests.forEach(function(t) {
+      log('Function ' + t[0] + ': ' + t[1], t[1] === 'function' ? 'ok' : 'err');
+    });
+    
+    document.getElementById('status').textContent = 'SUCCESS: ' + (payload.data ? payload.data.length : 0) + ' records loaded in ' + totalElapsed + 's';
+  })
+  .catch(function(err) {
+    clearTimeout(timeoutId);
+    var elapsed = ((Date.now() - loadStart) / 1000).toFixed(1);
+    if (err.name === 'AbortError') {
+      log('TIMEOUT after ' + elapsed + 's', 'err');
+      document.getElementById('status').textContent = 'TIMEOUT: ' + elapsed + 's - network too slow for 30MB download';
+    } else {
+      log('ERROR: ' + err.message + ' (after ' + elapsed + 's)', 'err');
+      document.getElementById('status').textContent = 'ERROR: ' + err.message;
+    }
+  });
+</script>
+</body></html>
