@@ -8,6 +8,7 @@
 <meta http-equiv="Expires" content="0">
 <title>Daily Booking Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#1a1a2e}
@@ -297,6 +298,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <script>
 Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 Chart.defaults.font.size = 11;
+Chart.register(ChartDataLabels);
 
 var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST, DIR_LIST;
 var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP, LANE_ETD_MAP, LANE_ETB_MAP;
@@ -915,7 +917,7 @@ function updateCharts(data) {
   if (chartPolInst) chartPolInst.destroy();
   chartPolInst = new Chart(ctxPol, {
     type: 'bar', data: { labels: polEntries.map(function(e){return e[0]}), datasets: [{ label: 'TEU', data: polEntries.map(function(e){return e[1]}), backgroundColor: '#0f3460', borderRadius: 4 }] },
-    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } } } } }
+    options: { responsive: true, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#0f3460', font: { size: 9, weight: 'bold' }, formatter: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toLocaleString(); }, offset: 2 } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } }, grace: '10%' } } }
   });
 
   // TEU by DEL
@@ -930,7 +932,7 @@ function updateCharts(data) {
   if (chartDelInst) chartDelInst.destroy();
   chartDelInst = new Chart(ctxDel, {
     type: 'bar', data: { labels: delEntries.map(function(e){return e[0]}), datasets: [{ label: 'TEU', data: delEntries.map(function(e){return e[1]}), backgroundColor: '#e74c3c', borderRadius: 4 }] },
-    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } } } } }
+    options: { responsive: true, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#0f3460', font: { size: 9, weight: 'bold' }, formatter: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toLocaleString(); }, offset: 2 } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } }, grace: '10%' } } }
   });
 
   // DEL Volume (Container Weight) by DEL
@@ -945,7 +947,7 @@ function updateCharts(data) {
   if (chartDelVolInst) chartDelVolInst.destroy();
   chartDelVolInst = new Chart(ctxDelVol, {
     type: 'bar', data: { labels: delVolEntries.map(function(e){return e[0]}), datasets: [{ label: 'Weight', data: delVolEntries.map(function(e){return e[1]}), backgroundColor: '#27ae60', borderRadius: 4 }] },
-    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } } } } }
+    options: { responsive: true, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#0f3460', font: { size: 9, weight: 'bold' }, formatter: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toLocaleString(); }, offset: 2 } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } }, grace: '10%' } } }
   });
 }
 
