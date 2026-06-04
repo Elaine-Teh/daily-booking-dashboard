@@ -44,12 +44,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .filter-clear{font-size:11px;color:#e74c3c;cursor:pointer;text-decoration:underline;white-space:nowrap}
 .filter-clear:hover{color:#c0392b}
 
-/* ETD/ETA Date Range Filter */
-.etd-filter,.eta-filter{display:flex;align-items:center;gap:6px;background:#f5f6fa;border:1px solid #ddd;border-radius:6px;padding:6px 10px}
-.etd-filter label,.eta-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
-.etd-filter input[type=date],.eta-filter input[type=date]{border:1px solid #ddd;border-radius:4px;padding:4px 8px;font-size:13px;outline:none;background:#fff;cursor:pointer}
-.etd-filter input[type=date]:focus,.eta-filter input[type=date]:focus{border-color:#0f3460}
-.etd-filter .etd-sep,.eta-filter .etd-sep{color:#999;font-size:13px}
+/* ETD/ETB Date Range Filter */
+.etd-filter,.etb-filter{display:flex;align-items:center;gap:6px;background:#f5f6fa;border:1px solid #ddd;border-radius:6px;padding:6px 10px}
+.etd-filter label,.etb-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+.etd-filter input[type=date],.etb-filter input[type=date]{border:1px solid #ddd;border-radius:4px;padding:4px 8px;font-size:13px;outline:none;background:#fff;cursor:pointer}
+.etd-filter input[type=date]:focus,.etb-filter input[type=date]:focus{border-color:#0f3460}
+.etd-filter .etd-sep,.etb-filter .etd-sep{color:#999;font-size:13px}
 
 /* KPI Cards */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:14px}
@@ -78,7 +78,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
 .summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
 .summary-table tr.detail-row.hidden{display:none}
-.summary-table tr.pol-total-row td{background:#e8f0fe;border-top:2px solid #a8c4f0;font-weight:700;color:#0d47a1;padding-left:46px}
 .summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-table .highlight{color:#0f3460;font-weight:600}
 
@@ -202,11 +201,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <span class="etd-sep">~</span>
       <input type="date" id="etdTo" title="ETD To">
     </div>
-    <div class="eta-filter">
-      <label>ETA</label>
-      <input type="date" id="etaFrom" title="ETA From">
+    <div class="etb-filter">
+      <label>ETB</label>
+      <input type="date" id="etbFrom" title="ETA From">
       <span class="etd-sep">~</span>
-      <input type="date" id="etaTo" title="ETA To">
+      <input type="date" id="etbTo" title="ETA To">
     </div>
     <span class="filter-clear" id="resetAll">Reset All</span>
   </div>
@@ -232,7 +231,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           <th style="min-width:110px">CUL CODE</th>
           <th style="min-width:80px">POL</th>
           <th style="min-width:80px">DEL</th>
-          <th style="min-width:80px">ETA</th>
+          <th style="min-width:80px">ETB</th>
           <th class="num" style="min-width:60px">20ft</th>
           <th class="num" style="min-width:60px">40ft</th>
           <th class="num" style="min-width:60px">40RF</th>
@@ -280,9 +279,9 @@ Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-s
 Chart.defaults.font.size = 11;
 
 var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST, DIR_LIST;
-var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP, LANE_ETD_MAP, LANE_ETA_MAP;
+var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP, LANE_ETD_MAP, LANE_ETB_MAP;
 var GLOBAL_ETD_MIN, GLOBAL_ETD_MAX;
-var GLOBAL_ETA_MIN, GLOBAL_ETA_MAX;
+var GLOBAL_ETB_MIN, GLOBAL_ETB_MAX;
 var msLane, msPol, msDel, msCul, msDir;
 
 // ============ DATA LOADING ============
@@ -322,7 +321,7 @@ var msLane, msPol, msDel, msCul, msDir;
       LANE_POL_MAP = payload.lane_pol_map || {};
       LANE_DEL_MAP = payload.lane_del_map || {};
       LANE_ETD_MAP = payload.lane_etd_map || {};
-      LANE_ETA_MAP = payload.lane_eta_map || {};
+      LANE_ETB_MAP = payload.lane_etb_map || {};
 
       // Data integrity check - also show on screen
       var checkMsg = '';
@@ -345,7 +344,7 @@ var msLane, msPol, msDel, msCul, msDir;
 
       initFilters();
       initETDRange(payload.etd_min, payload.etd_max);
-      initETARange(payload.eta_min, payload.eta_max);
+      initETARange(payload.etb_min, payload.etb_max);
       restoreFilterState();
       refreshAll(); // always render, even if restore failed
     })
@@ -460,8 +459,8 @@ function getFilteredData() {
   var dirSel = msDir.getSelected();
   var etdFrom = document.getElementById('etdFrom').value;
   var etdTo = document.getElementById('etdTo').value;
-  var etaFrom = document.getElementById('etaFrom').value;
-  var etaTo = document.getElementById('etaTo').value;
+  var etbFrom = document.getElementById('etbFrom').value;
+  var etbTo = document.getElementById('etbTo').value;
 
   // Debug logging to console
   console.log('=== Filter Debug ===');
@@ -471,12 +470,12 @@ function getFilteredData() {
   console.log('delSel size:', delSel.size, 'sample:', Array.from(delSel).slice(0,3));
   console.log('dirSel size:', dirSel.size, 'sample:', Array.from(dirSel).slice(0,4));
   console.log('etdFrom:', etdFrom, 'etdTo:', etdTo);
-  console.log('etaFrom:', etaFrom, 'etaTo:', etaTo);
+  console.log('etbFrom:', etbFrom, 'etbTo:', etbTo);
   console.log('Total ALL_DATA:', ALL_DATA.length);
 
   var lanePass = 0, culPass = 0, polPass = 0, delPass = 0, dirPass = 0, etdPass = 0, etaPass = 0, totalPass = 0;
   // BZCF2621W specific debug
-  var bzcfLost = {lane:0, pol:0, del:0, cul:0, dir:0, etd:0, eta:0, pass:0};
+  var bzcfLost = {lane:0, pol:0, del:0, cul:0, dir:0, etd:0, etb:0, pass:0};
   var result = ALL_DATA.filter(function(r) {
     var isBzcf = (r.cul_code === 'BZCF2621W');
     if (!laneSel.has(r.lane)) { if (isBzcf) bzcfLost.lane++; return false; } else { lanePass++; }
@@ -487,8 +486,8 @@ function getFilteredData() {
     if (recDir && !dirSel.has(recDir)) { if (isBzcf) bzcfLost.dir++; return false; } else { dirPass++; }
     if (etdFrom && r.etd && r.etd < etdFrom) { if (isBzcf) bzcfLost.etd++; return false; } else { etdPass++; }
     if (etdTo && r.etd && r.etd > etdTo) { if (isBzcf) bzcfLost.etd++; return false; }
-    if (etaFrom && r.eta && r.eta < etaFrom) { if (isBzcf) bzcfLost.eta++; return false; } else { etaPass++; }
-    if (etaTo && r.eta && r.eta > etaTo) { if (isBzcf) bzcfLost.eta++; return false; }
+    if (etbFrom && r.etb && r.etb < etbFrom) { if (isBzcf) bzcfLost.eta++; return false; } else { etaPass++; }
+    if (etbTo && r.etb && r.etb > etbTo) { if (isBzcf) bzcfLost.eta++; return false; }
     if (isBzcf) bzcfLost.pass++;
     totalPass++;
     return true;
@@ -533,11 +532,11 @@ function cascadeFilters() {
   var laneSel = msLane.getSelected();
   var etdFrom = document.getElementById('etdFrom').value;
   var etdTo = document.getElementById('etdTo').value;
-  var etaFrom = document.getElementById('etaFrom').value;
-  var etaTo = document.getElementById('etaTo').value;
+  var etbFrom = document.getElementById('etbFrom').value;
+  var etbTo = document.getElementById('etbTo').value;
   var allLanes = (laneSel.size === 0 || laneSel.size === LANE_LIST.length);
   var allETD = (!etdFrom && !etdTo);
-  var allETA = (!etaFrom && !etaTo);
+  var allETA = (!etbFrom && !etbTo);
 
   // If both Lane, ETD, and ETA are "all", restore full lists and select all
   if (allLanes && allETD && allETA) {
@@ -554,8 +553,8 @@ function cascadeFilters() {
     if (!allLanes && !laneSel.has(r.lane)) return;
     if (etdFrom && r.etd < etdFrom) return;
     if (etdTo && r.etd > etdTo) return;
-    if (etaFrom && r.eta && r.eta < etaFrom) return;
-    if (etaTo && r.eta && r.eta > etaTo) return;
+    if (etbFrom && r.etb && r.etb < etbFrom) return;
+    if (etbTo && r.etb && r.etb > etbTo) return;
     if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
     if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
     if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
@@ -575,14 +574,14 @@ function onLaneChange(selectedLanes) {
   // Adjust ETD range to selected lane(s) data range
   var fromEl = document.getElementById('etdFrom');
   var toEl = document.getElementById('etdTo');
-  var etaFrom = document.getElementById('etaFrom');
-  var etaTo = document.getElementById('etaTo');
+  var etbFrom = document.getElementById('etbFrom');
+  var etbTo = document.getElementById('etbTo');
   if (selectedLanes.size === 0 || selectedLanes.size === LANE_LIST.length) {
     // All lanes — restore full ETD/ETA range
     fromEl.min = GLOBAL_ETD_MIN; fromEl.max = GLOBAL_ETD_MAX;
     toEl.min = GLOBAL_ETD_MIN; toEl.max = GLOBAL_ETD_MAX;
-    if (GLOBAL_ETA_MIN) { etaFrom.min = GLOBAL_ETA_MIN; etaFrom.max = GLOBAL_ETA_MAX; }
-    if (GLOBAL_ETA_MIN) { etaTo.min = GLOBAL_ETA_MIN; etaTo.max = GLOBAL_ETA_MAX; }
+    if (GLOBAL_ETB_MIN) { etbFrom.min = GLOBAL_ETB_MIN; etbFrom.max = GLOBAL_ETB_MAX; }
+    if (GLOBAL_ETB_MIN) { etbTo.min = GLOBAL_ETB_MIN; etbTo.max = GLOBAL_ETB_MAX; }
   } else {
     // Specific lane(s) — narrow to their ETD/ETA range
     var lanes = Array.from(selectedLanes);
@@ -594,7 +593,7 @@ function onLaneChange(selectedLanes) {
         if (!laneMin || m.min < laneMin) laneMin = m.min;
         if (!laneMax || m.max > laneMax) laneMax = m.max;
       }
-      var em = LANE_ETA_MAP[lane];
+      var em = LANE_ETB_MAP[lane];
       if (em) {
         if (!laneEtaMin || em.min < laneEtaMin) laneEtaMin = em.min;
         if (!laneEtaMax || em.max > laneEtaMax) laneEtaMax = em.max;
@@ -605,8 +604,8 @@ function onLaneChange(selectedLanes) {
       toEl.min = laneMin; toEl.max = laneMax;
     }
     if (laneEtaMin && laneEtaMax) {
-      etaFrom.min = laneEtaMin; etaFrom.max = laneEtaMax;
-      etaTo.min = laneEtaMin; etaTo.max = laneEtaMax;
+      etbFrom.min = laneEtaMin; etbFrom.max = laneEtaMax;
+      etbTo.min = laneEtaMin; etbTo.max = laneEtaMax;
     }
   }
   cascadeFilters();
@@ -624,9 +623,9 @@ function initETDRange(min, max) {
 }
 
 function initETARange(min, max) {
-  GLOBAL_ETA_MIN = min || ''; GLOBAL_ETA_MAX = max || '';
-  var fromEl = document.getElementById('etaFrom');
-  var toEl = document.getElementById('etaTo');
+  GLOBAL_ETB_MIN = min || ''; GLOBAL_ETB_MAX = max || '';
+  var fromEl = document.getElementById('etbFrom');
+  var toEl = document.getElementById('etbTo');
   if (min) { fromEl.min = min; fromEl.max = max; }
   if (min) { toEl.min = min; toEl.max = max; }
   fromEl.onchange = function() { cascadeFilters(); refreshAll(); saveFilterState(); };
@@ -656,16 +655,13 @@ function buildSummary(data) {
     if (!groups[lk]) groups[lk] = {};
     if (!groups[lk][ck]) groups[lk][ck] = {};
     if (!groups[lk][ck][comboKey]) {
-      groups[lk][ck][comboKey] = { pol: r.pol, del: r.del_port, eta: r.eta || '', booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
+      groups[lk][ck][comboKey] = { pol: r.pol, del: r.del_port, eta: r.etb || '', booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
     }
-    var combo = groups[lk][ck][comboKey];
-    combo.booking_sum += r.booking_cnt;
-    combo.weight_sum += r.container_weight;
-    combo.ft20_sum += r.ft20;
-    combo.ft40_sum += r.ft40;
-    combo.ft40rf_sum += r.ft40rf;
-    // keep earliest ETA for this POL+DEL combo
-    if (r.eta && (!combo.eta || r.eta < combo.eta)) combo.eta = r.eta;
+    groups[lk][ck][comboKey].booking_sum += r.booking_cnt;
+    groups[lk][ck][comboKey].weight_sum += r.container_weight;
+    groups[lk][ck][comboKey].ft20_sum += r.ft20;
+    groups[lk][ck][comboKey].ft40_sum += r.ft40;
+    groups[lk][ck][comboKey].ft40rf_sum += r.ft40rf;
   });
 
   var tbody = '';
@@ -682,13 +678,12 @@ function buildSummary(data) {
       laneFT40 += combos.reduce(function(s,v){return s+v.ft40_sum},0);
       laneFT40RF += combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
     });
+
     var laneFEU = laneFT40 + laneFT40RF;
 
-    // Lane row: 12 cols (TRUNK LANE | CUL | POL | DEL | ETA | 20FT | 40FT | 40RF | FEU | BOOKING | WEIGHT | AVG)
     tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
     tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td></td>';  // CUL, POL, DEL, ETA placeholders
-    tbody += '<td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
@@ -698,7 +693,7 @@ function buildSummary(data) {
     tbody += '</tr>';
 
     culCodes.forEach(function(ck) {
-      var combos = Object.values(groups[lane][ck]);
+      var combos = Object.values(groups[lane][ck]).sort(function(a,b){ return a.pol.localeCompare(b.pol); });
       var culBooking = combos.reduce(function(s,v){return s+v.booking_sum},0);
       var culWeight = combos.reduce(function(s,v){return s+v.weight_sum},0);
       var culFT20 = combos.reduce(function(s,v){return s+v.ft20_sum},0);
@@ -706,10 +701,9 @@ function buildSummary(data) {
       var culFT40RF = combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
       var culFEU = culFT40 + culFT40RF;
 
-      // CUL row: 12 cols
       tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
       tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
-      tbody += '<td></td><td></td><td></td>';  // POL, DEL, ETA placeholders
+      tbody += '<td></td><td></td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
@@ -720,77 +714,29 @@ function buildSummary(data) {
       tbody += '</tr>';
       totalRows++;
 
-      // Group combos by POL, sort each POL group by earliest ETA
-      var polGroups = {};
       combos.forEach(function(c) {
-        if (!polGroups[c.pol]) polGroups[c.pol] = { items: [], eta: '' };
-        polGroups[c.pol].items.push(c);
-        if (c.eta && (!polGroups[c.pol].eta || c.eta < polGroups[c.pol].eta)) {
-          polGroups[c.pol].eta = c.eta;
-        }
-      });
-
-      // Sort POLs by earliest ETA ascending (no ETA → last)
-      var polKeys = Object.keys(polGroups).sort(function(a, b) {
-        var ea = polGroups[a].eta || '9999-99-99';
-        var eb = polGroups[b].eta || '9999-99-99';
-        return ea.localeCompare(eb);
-      });
-
-      polKeys.forEach(function(pol) {
-        var pg = polGroups[pol];
-        var polItems = pg.items.sort(function(a,b){ return (a.eta||'9999').localeCompare(b.eta||'9999'); });
-        var polFT20 = polItems.reduce(function(s,v){return s+v.ft20_sum},0);
-        var polFT40 = polItems.reduce(function(s,v){return s+v.ft40_sum},0);
-        var polFT40RF = polItems.reduce(function(s,v){return s+v.ft40rf_sum},0);
-        var polFEU = polFT40 + polFT40RF;
-        var polBooking = polItems.reduce(function(s,v){return s+v.booking_sum},0);
-        var polWeight = polItems.reduce(function(s,v){return s+v.weight_sum},0);
-        var polAvg = polBooking > 0 ? Math.round(polWeight / polBooking) : 0;
-
-        // POL TOTAL row on TOP (only if >1 DEL, shown with blue highlight)
-        if (polItems.length > 1) {
-          tbody += '<tr class="detail-row pol-total-row hidden" data-parent="' + escapeHtml(lane) + '">';
-          tbody += '<td></td><td></td>';
-          tbody += '<td><b>TOTAL ' + escapeHtml(pol) + '</b></td>';
-          tbody += '<td></td>';  // DEL blank
-          tbody += '<td style="font-size:12px;color:#555">' + (pg.eta || '') + '</td>';  // ETA only here
-          tbody += '<td class="num">' + polFT20.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + polFT40.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + polFT40RF.toLocaleString() + '</td>';
-          tbody += '<td class="num accent">' + polFEU.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + polBooking.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + polWeight.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + polAvg.toLocaleString() + '</td>';
-          tbody += '</tr>';
-          totalRows++;
-        }
-
-        // Detail rows (no ETA column)
-        polItems.forEach(function(c) {
-          var cFEU = c.ft40_sum + c.ft40rf_sum;
-          tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
-          tbody += '<td></td><td></td>';
-          tbody += '<td>' + escapeHtml(c.pol) + '</td>';
-          tbody += '<td>' + escapeHtml(c.del) + '</td>';
-          tbody += '<td></td>';  // ETA blank on detail rows
-          tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
-          var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
-          tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
-          tbody += '</tr>';
-          totalRows++;
-        });
+        var cFEU = c.ft40_sum + c.ft40rf_sum;
+        tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
+        tbody += '<td></td><td></td>';
+        tbody += '<td>' + escapeHtml(c.pol) + '</td>';
+        tbody += '<td>' + escapeHtml(c.del) + '</td>';
+        tbody += '<td>' + (c.etb || '-') + '</td>';
+        tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
+        var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
+        tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
+        tbody += '</tr>';
+        totalRows++;
       });
     });
   });
 
   if (totalRows === 0) {
-    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="12" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
+    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
   } else {
     document.getElementById('summaryTable').querySelector('tbody').innerHTML = tbody;
   }
@@ -954,8 +900,8 @@ function saveFilterState() {
       dir: Array.from(msDir.getSelected()),
       etdFrom: document.getElementById('etdFrom').value,
       etdTo: document.getElementById('etdTo').value,
-      etaFrom: document.getElementById('etaFrom').value,
-      etaTo: document.getElementById('etaTo').value,
+      etbFrom: document.getElementById('etbFrom').value,
+      etbTo: document.getElementById('etbTo').value,
       detailSearch: document.getElementById('detailSearch').value
     };
     localStorage.setItem('db_filter_state', JSON.stringify(state));
@@ -979,11 +925,11 @@ function restoreFilterState() {
       console.log('[RESTORE] Lane set to:', state.lane);
     }
 
-    // Step 2: Restore ETD & ETA
+    // Step 2: Restore ETD & ETB
     if (state.etdFrom) document.getElementById('etdFrom').value = state.etdFrom;
     if (state.etdTo) document.getElementById('etdTo').value = state.etdTo;
-    if (state.etaFrom) document.getElementById('etaFrom').value = state.etaFrom;
-    if (state.etaTo) document.getElementById('etaTo').value = state.etaTo;
+    if (state.etbFrom) document.getElementById('etbFrom').value = state.etbFrom;
+    if (state.etbTo) document.getElementById('etbTo').value = state.etbTo;
 
     // Step 3: Manually set saved CUL/POL/DEL/DIR selections BEFORE cascade
     if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
@@ -1061,11 +1007,11 @@ document.getElementById('resetAll').onclick = function() {
   fromEl.value = ''; toEl.value = '';
   fromEl.min = GLOBAL_ETD_MIN; fromEl.max = GLOBAL_ETD_MAX;
   toEl.min = GLOBAL_ETD_MIN; toEl.max = GLOBAL_ETD_MAX;
-  var etaFrom = document.getElementById('etaFrom');
-  var etaTo = document.getElementById('etaTo');
-  etaFrom.value = ''; etaTo.value = '';
-  if (GLOBAL_ETA_MIN) { etaFrom.min = GLOBAL_ETA_MIN; etaFrom.max = GLOBAL_ETA_MAX; }
-  if (GLOBAL_ETA_MIN) { etaTo.min = GLOBAL_ETA_MIN; etaTo.max = GLOBAL_ETA_MAX; }
+  var etbFrom = document.getElementById('etbFrom');
+  var etbTo = document.getElementById('etbTo');
+  etbFrom.value = ''; etbTo.value = '';
+  if (GLOBAL_ETB_MIN) { etbFrom.min = GLOBAL_ETB_MIN; etbFrom.max = GLOBAL_ETB_MAX; }
+  if (GLOBAL_ETB_MIN) { etbTo.min = GLOBAL_ETB_MIN; etbTo.max = GLOBAL_ETB_MAX; }
   refreshAll();
   saveFilterState();
 };
