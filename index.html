@@ -8,6 +8,7 @@
 <meta http-equiv="Expires" content="0">
 <title>Daily Booking Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#1a1a2e}
@@ -15,6 +16,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .header h1{font-size:20px;font-weight:600}
 .header .updated{font-size:12px;opacity:.7}
 .container{max-width:1400px;margin:0 auto;padding:16px 20px}
+
+
+/* SUL_YN Segmented Filter */
+.sul-filter{display:flex;align-items:center;gap:6px}
+.sul-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+.sul-seg{display:flex;border-radius:6px;overflow:hidden;border:1px solid #ddd}
+.sul-seg button{padding:5px 14px;font-size:12px;font-weight:600;border:none;background:#f5f6fa;color:#666;cursor:pointer;transition:.15s;border-right:1px solid #ddd}
+.sul-seg button:last-child{border-right:none}
+.sul-seg button.active{background:#0f3460;color:#fff}
+.sul-seg button:hover:not(.active){background:#e8f0fe}
 
 /* Filters Bar */
 .filters-bar{background:#fff;border-radius:10px;padding:14px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
@@ -78,6 +89,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
 .summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
 .summary-table tr.detail-row.hidden{display:none}
+.summary-table .pol-total-row{background:#e8f4fd;font-weight:700;cursor:pointer;border-top:2px solid #0f3460}
+.summary-table .pol-total-row td{font-size:12px;color:#0f3460;padding-top:10px}
+.summary-table .pol-total-row .pol-toggle-icon{display:inline-block;width:16px;text-align:center;transition:transform .2s}
+.summary-table tr.pol-collapsed{display:none}
+.summary-table tr.pol-group-hidden{display:none!important}
 .summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-table .highlight{color:#0f3460;font-weight:600}
 
@@ -202,7 +218,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <input type="date" id="etdTo" title="ETD To">
     </div>
     <div class="eta-filter">
-      <label>ETB</label>
+      <label>POL ETB</label>
       <input type="date" id="etbFrom" title="ETA From">
       <span class="etd-sep">~</span>
       <input type="date" id="etbTo" title="ETA To">
@@ -476,7 +492,12 @@ function getFilteredData() {
   var lanePass = 0, culPass = 0, polPass = 0, delPass = 0, dirPass = 0, etdPass = 0, etaPass = 0, totalPass = 0;
   // BZCF2621W specific debug
   var bzcfLost = {lane:0, pol:0, del:0, cul:0, dir:0, etd:0, etb:0, pass:0};
-  var result = ALL_DATA.filter(function(r) {
+    var result = ALL_DATA.filter(function(r) {
+    // SUL_YN filter
+    if (sulFilter === 'SUL' && r.sul_yn !== 'Y') return false;
+    if (sulFilter === 'CUL' && r.sul_yn !== 'N') return false;
+    // ETB filter: CUL-level check - a CUL is included if ANY of its POLs has ETB in range
+
     var isBzcf = (r.cul_code === 'BZCF2621W');
     if (!laneSel.has(r.lane)) { if (isBzcf) bzcfLost.lane++; return false; } else { lanePass++; }
     if (!polSel.has(r.pol)) { if (isBzcf) bzcfLost.pol++; return false; } else { polPass++; }
@@ -559,6 +580,42 @@ function cascadeFilters() {
     if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
     if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
   });
+  // Deferred ETB check for cascading: include CUL if any POL has ETB in range
+  if (etbFrom || etbTo) {
+    var filteredCulSet = {};
+    var filteredPolSet = {};
+    var filteredDelSet = {};
+    Object.keys(culSet).forEach(function(cul) {
+      var pm = (window._culEtbCache || {})[cul] || {};
+      var etbs = Object.values(pm).filter(function(e) { return e; });
+      var inRange = false;
+      for (var i = 0; i < etbs.length; i++) {
+        if ((!etbFrom || etbs[i] >= etbFrom) && (!etbTo || etbs[i] <= etbTo)) {
+          inRange = true; break;
+        }
+      }
+      if (inRange) filteredCulSet[cul] = true;
+      else {
+        // Even if CUL excluded, keep POL/DEL that had ETB in range
+        // Actually, just exclude CUL; POL/DEL from excluded CULs also excluded
+      }
+    });
+    // Rebuild pools excluding non-ETB-range CULs
+    culPool = Object.keys(filteredCulSet).sort();
+    // Rebuild polPool and delPool only from filtered CULs
+    polPool = []; var ps = {};
+    delPool = []; var ds = {};
+    ALL_DATA.forEach(function(r) {
+      if (!filteredCulSet[r.cul_code]) return;
+      if (!allLanes && !laneSel.has(r.lane)) return;
+      if (etdFrom && r.etd < etdFrom) return;
+      if (etdTo && r.etd > etdTo) return;
+      if (!ps[r.pol]) { ps[r.pol] = true; polPool.push(r.pol); }
+      if (!ds[r.del_port]) { ds[r.del_port] = true; delPool.push(r.del_port); }
+    });
+    polPool.sort(); delPool.sort();
+    window._culEtbCache = null;
+  }
   culPool.sort(); polPool.sort(); delPool.sort();
 
   msCul.updateItems(culPool);
