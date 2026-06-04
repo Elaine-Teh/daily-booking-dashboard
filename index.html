@@ -355,6 +355,7 @@ var msLane, msPol, msDel, msCul, msDir;
       return r.json();
     })
     .then(function(payload) {
+      console.log('[D] Step 1: Setting global vars...');
       ALL_DATA = payload.data;
       LANE_LIST = payload.lane_list;
       POL_LIST = payload.pol_list;
@@ -366,6 +367,7 @@ var msLane, msPol, msDel, msCul, msDir;
       LANE_DEL_MAP = payload.lane_del_map || {};
       LANE_ETD_MAP = payload.lane_etd_map || {};
       LANE_ETB_MAP = payload.lane_etb_map || {};
+      console.log('[D] Step 1 done. Records:', ALL_DATA ? ALL_DATA.length : 0);
 
       // Data integrity check - also show on screen
       var checkMsg = '';
@@ -382,18 +384,30 @@ var msLane, msPol, msDel, msCul, msDir;
       var debugEl = document.getElementById('debugPanel');
       if (debugEl) { debugEl.innerHTML = '<b>Data Check:</b> ' + checkMsg; debugEl.style.display = 'block'; }
 
+      console.log('[D] Step 2: Hiding loading, showing content...');
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
       document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
 
-      initFilters();
-      initETDRange(payload.etd_min, payload.etd_max);
-      initETARange(payload.etb_min, payload.etb_max);
-      restoreFilterState();
-      refreshAll(); // always render, even if restore failed
+      console.log('[D] Step 3: initFilters...');
+      try { initFilters(); console.log('[D] Step 3 done'); }
+      catch(e) { console.error('[D] initFilters ERROR:', e); throw e; }
+      console.log('[D] Step 4: initETDRange...');
+      try { initETDRange(payload.etd_min, payload.etd_max); console.log('[D] Step 4 done'); }
+      catch(e) { console.error('[D] initETDRange ERROR:', e); throw e; }
+      console.log('[D] Step 5: initETARange...');
+      try { initETARange(payload.etb_min, payload.etb_max); console.log('[D] Step 5 done'); }
+      catch(e) { console.error('[D] initETARange ERROR:', e); throw e; }
+      console.log('[D] Step 6: restoreFilterState...');
+      try { restoreFilterState(); console.log('[D] Step 6 done'); }
+      catch(e) { console.error('[D] restoreFilterState ERROR:', e); console.log('[D] Continuing despite error...'); }
+      console.log('[D] Step 7: refreshAll...');
+      try { refreshAll(); console.log('[D] Step 7 done - DASHBOARD SHOULD BE VISIBLE'); }
+      catch(e) { console.error('[D] refreshAll ERROR:', e); throw e; }
     })
     .catch(function(err) {
       clearTimeout(timeoutId);
+      console.log('[D] Step 2: Hiding loading, showing content...');
       loadingEl.style.display = 'none';
       var elapsed = ((Date.now() - loadStart) / 1000).toFixed(1);
       if (err.name === 'AbortError') {
@@ -402,6 +416,8 @@ var msLane, msPol, msDel, msCul, msDir;
         showError(err.message, 'Time elapsed: ' + elapsed + 's | Please check browser console (F12) for details.');
       }
       console.error('Data load error:', err);
+      console.error('Stack:', err.stack || 'no stack');
+      throw new Error('[CATCH] ' + err.message);
     });
 })();
 
