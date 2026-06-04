@@ -800,6 +800,17 @@ function buildSummary(data) {
   document.getElementById('summaryCount').textContent = totalRows + ' groups';
 }
 
+function togglePolGroup(row) {
+  row.classList.toggle('pol-expanded');
+  var icon = row.querySelector('.pol-toggle-icon');
+  var polGroup = row.dataset.polGroup;
+  var visible = row.classList.contains('pol-expanded');
+  if (icon) icon.textContent = visible ? '\u25bc' : '\u25b6';
+  document.querySelectorAll('[data-pol-group="' + polGroup + '"]').forEach(function(r) {
+    r.classList.toggle('pol-collapsed', !visible);
+    if (visible && r.classList.contains('hidden')) r.classList.remove('hidden');
+  });
+}
 function toggleLane(row) {
   row.classList.toggle('expanded');
   row.classList.toggle('collapsed', !row.classList.contains('expanded'));
