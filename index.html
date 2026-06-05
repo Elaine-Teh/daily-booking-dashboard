@@ -79,6 +79,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
 .summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
 .summary-table tr.detail-row.hidden{display:none}
+.pol-total-row{background:#e8f0fe;border-top:2px solid #0f3460;cursor:pointer}
+.pol-total-row td{font-weight:700;color:#0f3460}
+.pol-total-row .expand-icon{display:inline-block;width:14px;text-align:center;transition:transform .2s;font-size:10px}
+.pol-total-row.expanded .expand-icon{transform:rotate(90deg)}
+.pol-collapsed{display:none}
 .summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-table .highlight{color:#0f3460;font-weight:600}
 
@@ -202,11 +207,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <span class="etd-sep">~</span>
       <input type="date" id="etdTo" title="ETD To">
     </div>
-    <div class="eta-filter">
+    <div class="etb-filter">
       <label>ETB</label>
-      <input type="date" id="etbFrom" title="ETA From">
+      <input type="date" id="etbFrom" title="ETB From">
       <span class="etd-sep">~</span>
-      <input type="date" id="etbTo" title="ETA To">
+      <input type="date" id="etbTo" title="ETB To">
     </div>
     <span class="filter-clear" id="resetAll">Reset All</span>
   </div>
@@ -685,7 +690,7 @@ function buildSummary(data) {
 
     tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
     tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<td></td><td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
@@ -705,7 +710,7 @@ function buildSummary(data) {
 
       tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
       tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
-      tbody += '<td></td><td></td>';
+      tbody += '<td></td><td></td><td></td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
@@ -716,23 +721,85 @@ function buildSummary(data) {
       tbody += '</tr>';
       totalRows++;
 
+      // Group combos by POL for TOTAL rows
+      var polGroups = {};
       combos.forEach(function(c) {
-        var cFEU = c.ft40_sum + c.ft40rf_sum;
-        tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
-        tbody += '<td></td><td></td>';
-        tbody += '<td>' + escapeHtml(c.pol) + '</td>';
-        tbody += '<td>' + escapeHtml(c.del) + '</td>';
-        tbody += '<td>' + (c.etb || '-') + '</td>';
-        tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
-        var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
-        tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
-        tbody += '</tr>';
-        totalRows++;
+        var pol = c.pol;
+        if (!polGroups[pol]) polGroups[pol] = [];
+        polGroups[pol].push(c);
+      });
+      var polsSorted = Object.keys(polGroups).sort();
+
+      polsSorted.forEach(function(pol) {
+        var pCombo = polGroups[pol];
+        var polDelCount = pCombo.length;
+
+        if (polDelCount > 1) {
+          // POL with multiple DELs -> add a POL TOTAL row, then collapsed detail rows
+          var polBooking = 0, polWeight = 0, polFT20 = 0, polFT40 = 0, polFT40RF = 0;
+          pCombo.forEach(function(c) {
+            polBooking += c.booking_sum; polWeight += c.weight_sum;
+            polFT20 += c.ft20_sum; polFT40 += c.ft40_sum; polFT40RF += c.ft40rf_sum;
+          });
+          var polFEU = polFT40 + polFT40RF;
+          var pAvg = polBooking > 0 ? Math.round(polWeight / polBooking) : 0;
+
+          // POL TOTAL row (collapsible header)
+          tbody += '<tr class="pol-total-row" onclick="togglePolGroup(this)" data-pol-group="' + escapeHtml(lane) + '|||' + escapeHtml(ck) + '|||' + escapeHtml(pol) + '">';
+          tbody += '<td></td><td></td>';
+          tbody += '<td><span class="expand-icon">▶</span> ' + escapeHtml(pol) + '</td>';
+          tbody += '<td></td>'; // DEL empty
+          tbody += '<td>' + (pCombo[0].eta || '') + '</td>'; // ETB
+          tbody += '<td class="num">' + polFT20.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + polFT40.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + polFT40RF.toLocaleString() + '</td>';
+          tbody += '<td class="num accent">' + polFEU.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + polBooking.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + polWeight.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + pAvg.toLocaleString() + '</td>';
+          tbody += '</tr>';
+          totalRows++;
+
+          // Detail rows (collapsed by default)
+          pCombo.forEach(function(c) {
+            var cFEU = c.ft40_sum + c.ft40rf_sum;
+            var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
+            tbody += '<tr class="detail-row pol-collapsed hidden" data-parent="' + escapeHtml(lane) + '" data-pol-group="' + escapeHtml(lane) + '|||' + escapeHtml(ck) + '|||' + escapeHtml(pol) + '">';
+            tbody += '<td></td><td></td>';
+            tbody += '<td></td>'; // POL empty (shown on TOTAL)
+            tbody += '<td>' + escapeHtml(c.del) + '</td>';
+            tbody += '<td></td>'; // ETB empty (shown on TOTAL)
+            tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
+            tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
+            tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
+            tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
+            tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
+            tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
+            tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
+            tbody += '</tr>';
+            totalRows++;
+          });
+        } else {
+          // Single DEL POL -> normal detail row showing everything
+          pCombo.forEach(function(c) {
+            var cFEU = c.ft40_sum + c.ft40rf_sum;
+            var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
+            tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
+            tbody += '<td></td><td></td>';
+            tbody += '<td>' + escapeHtml(c.pol) + '</td>';
+            tbody += '<td>' + escapeHtml(c.del) + '</td>';
+            tbody += '<td>' + (c.eta || '') + '</td>';
+            tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
+            tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
+            tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
+            tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
+            tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
+            tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
+            tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
+            tbody += '</tr>';
+            totalRows++;
+          });
+        }
       });
     });
   });
@@ -753,6 +820,18 @@ function toggleLane(row) {
   document.querySelectorAll('[data-parent="' + lane + '"]').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
   });
+}
+
+function togglePolGroup(row) {
+  row.classList.toggle('expanded');
+  var group = row.dataset.polGroup;
+  var visible = row.classList.contains('expanded');
+  document.querySelectorAll('[data-pol-group="' + group + '"]').forEach(function(r) {
+    r.classList.toggle('pol-collapsed', !visible);
+  });
+  // Toggle icon
+  var icon = row.querySelector('.expand-icon');
+  if (icon) icon.textContent = visible ? '▼' : '▶';
 }
 
 // ============ CHARTS ============
