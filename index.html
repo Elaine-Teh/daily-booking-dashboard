@@ -77,6 +77,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .summary-table .lane-row .expand-icon{display:inline-block;width:16px;text-align:center;transition:transform .2s}
 .summary-table .lane-row.expanded .expand-icon{transform:rotate(90deg)}
 .summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
+.summary-table .cul-row{cursor:pointer}
+.summary-table .cul-row .expand-icon{display:inline-block;width:14px;text-align:center;transition:transform .2s;font-size:10px}
+.summary-table .cul-row.expanded .expand-icon{transform:rotate(90deg)}
 .summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
 .summary-table tr.hidden{display:none}
 .pol-total-row{background:#e8f0fe;border-top:2px solid #0f3460;cursor:pointer}
@@ -708,8 +711,8 @@ function buildSummary(data) {
       var culFT40RF = combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
       var culFEU = culFT40 + culFT40RF;
 
-      tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
-      tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
+      tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '" onclick="toggleCul(this)" data-cul="' + escapeHtml(lane) + '|||' + escapeHtml(ck) + '">';
+      tbody += '<td></td><td><span class="expand-icon">▶</span> <b>' + escapeHtml(ck) + '</b></td>';
       tbody += '<td></td><td></td><td></td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
@@ -745,7 +748,7 @@ function buildSummary(data) {
           var pAvg = polBooking > 0 ? Math.round(polWeight / polBooking) : 0;
 
           // POL TOTAL row (collapsible header)
-          tbody += '<tr class="pol-total-row hidden" data-parent="' + escapeHtml(lane) + '" onclick="togglePolGroup(this)" data-pol-group="' + escapeHtml(lane) + '|||' + escapeHtml(ck) + '|||' + escapeHtml(pol) + '">';
+          tbody += '<tr class="pol-total-row hidden" data-parent-cul="' + escapeHtml(lane) + '|||' + escapeHtml(ck) + '" onclick="togglePolGroup(this)" data-pol-group="' + escapeHtml(lane) + '|||' + escapeHtml(ck) + '|||' + escapeHtml(pol) + '">';
           tbody += '<td></td><td></td>';
           tbody += '<td><span class="expand-icon">▶</span> ' + escapeHtml(pol) + '</td>';
           tbody += '<td></td>'; // DEL empty
@@ -764,7 +767,7 @@ function buildSummary(data) {
           pCombo.forEach(function(c) {
             var cFEU = c.ft40_sum + c.ft40rf_sum;
             var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
-            tbody += '<tr class="detail-row pol-collapsed hidden" data-parent="' + escapeHtml(lane) + '" data-pol-group="' + escapeHtml(lane) + '|||' + escapeHtml(ck) + '|||' + escapeHtml(pol) + '">';
+            tbody += '<tr class="detail-row hidden" data-parent-pol="' + escapeHtml(lane) + '|||' + escapeHtml(ck) + '|||' + escapeHtml(pol) + '">';
             tbody += '<td></td><td></td>';
             tbody += '<td></td>'; // POL empty (shown on TOTAL)
             tbody += '<td>' + escapeHtml(c.del) + '</td>';
@@ -784,7 +787,7 @@ function buildSummary(data) {
           pCombo.forEach(function(c) {
             var cFEU = c.ft40_sum + c.ft40rf_sum;
             var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
-            tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
+            tbody += '<tr class="detail-row hidden" data-parent-cul="' + escapeHtml(lane) + '|||' + escapeHtml(ck) + '">';
             tbody += '<td></td><td></td>';
             tbody += '<td>' + escapeHtml(c.pol) + '</td>';
             tbody += '<td>' + escapeHtml(c.del) + '</td>';
@@ -814,7 +817,6 @@ function buildSummary(data) {
 
 function toggleLane(row) {
   row.classList.toggle('expanded');
-  row.classList.toggle('collapsed', !row.classList.contains('expanded'));
   var lane = row.dataset.lane;
   var visible = row.classList.contains('expanded');
   document.querySelectorAll('[data-parent="' + lane + '"]').forEach(function(r) {
@@ -822,15 +824,24 @@ function toggleLane(row) {
   });
 }
 
+function toggleCul(row) {
+  row.classList.toggle('expanded');
+  var cul = row.dataset.cul;
+  var visible = row.classList.contains('expanded');
+  document.querySelectorAll('[data-parent-cul="' + cul + '"]').forEach(function(r) {
+    r.classList.toggle('hidden', !visible);
+  });
+  var icon = row.querySelector('.expand-icon');
+  if (icon) icon.textContent = visible ? '▼' : '▶';
+}
+
 function togglePolGroup(row) {
   row.classList.toggle('expanded');
   var group = row.dataset.polGroup;
   var visible = row.classList.contains('expanded');
-  // Only target detail rows — NOT the POL TOTAL row itself
-  document.querySelectorAll('tr.detail-row[data-pol-group="' + group + '"]').forEach(function(r) {
-    r.classList.toggle('pol-collapsed', !visible);
+  document.querySelectorAll('[data-parent-pol="' + group + '"]').forEach(function(r) {
+    r.classList.toggle('hidden', !visible);
   });
-  // Toggle icon
   var icon = row.querySelector('.expand-icon');
   if (icon) icon.textContent = visible ? '▼' : '▶';
 }
