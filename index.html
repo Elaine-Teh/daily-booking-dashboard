@@ -826,7 +826,8 @@ function togglePolGroup(row) {
   row.classList.toggle('expanded');
   var group = row.dataset.polGroup;
   var visible = row.classList.contains('expanded');
-  document.querySelectorAll('[data-pol-group="' + group + '"]').forEach(function(r) {
+  // Only target detail rows — NOT the POL TOTAL row itself
+  document.querySelectorAll('tr.detail-row[data-pol-group="' + group + '"]').forEach(function(r) {
     r.classList.toggle('pol-collapsed', !visible);
   });
   // Toggle icon
