@@ -766,7 +766,7 @@ function buildSummary(data) {
           tbody += '<td></td><td></td>';
           tbody += '<td>' + escapeHtml(c.pol) + '</td>';
           tbody += '<td>' + escapeHtml(c.del) + '</td>';
-          tbody += '<td>' + (c.eta || '-') + '</td>';
+          tbody += '<td></td>';  // ETB shown on POL TOTAL row only
           tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
           tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
           tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
