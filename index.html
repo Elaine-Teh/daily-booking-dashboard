@@ -225,8 +225,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="kpi-card"><div class="kpi-value" id="kpiBooking">0</div><div class="kpi-label">Booking Count</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpiWeight">0</div><div class="kpi-label">Container Weight</div></div>
   </div>
-  <div id="debugPanel" style="display:none;background:#fff3cd;color:#856404;padding:8px 12px;border-radius:6px;margin:8px 0;font-size:12px;font-family:monospace;"></div>
-
   <!-- SUMMARY TABLE -->
   <div class="summary-section">
     <h2>📋 Summary by Trunk Lane & CUL Code <span class="badge" id="summaryCount"></span></h2>
@@ -335,21 +333,6 @@ var msLane, msPol, msDel, msCul, msDir;
       LANE_DEL_MAP = payload.lane_del_map || {};
       LANE_ETD_MAP = payload.lane_etd_map || {};
       LANE_ETB_MAP = payload.lane_etb_map || {};
-
-      // Data integrity check - also show on screen
-      var checkMsg = '';
-      checkMsg += 'Records: ' + ALL_DATA.length + ' (expected: ' + (payload.total_records || '?') + ')<br>';
-      checkMsg += 'Generated: ' + (payload.generated_at || '?') + '<br>';
-      (function() {
-        var bzcf = ALL_DATA.filter(function(r) { return r.cul_code === 'BZCF2621W'; });
-        if (bzcf.length > 0) {
-          var bzcf20 = bzcf.reduce(function(s,r){return s+r.ft20},0);
-          checkMsg += 'BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf20;
-          console.log('[Data Check] BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf20);
-        }
-      })();
-      var debugEl = document.getElementById('debugPanel');
-      if (debugEl) { debugEl.innerHTML = '<b>Data Check:</b> ' + checkMsg; debugEl.style.display = 'block'; }
 
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
@@ -475,21 +458,6 @@ function getFilteredData() {
   var etbFrom = document.getElementById('etbFrom').value;
   var etbTo = document.getElementById('etbTo').value;
 
-  // Debug logging to console
-  console.log('=== Filter Debug ===');
-  console.log('laneSel size:', laneSel.size, 'sample:', Array.from(laneSel).slice(0,3));
-  console.log('culSel size:', culSel.size, 'sample:', Array.from(culSel).slice(0,3));
-  console.log('polSel size:', polSel.size, 'sample:', Array.from(polSel).slice(0,3));
-  console.log('delSel size:', delSel.size, 'sample:', Array.from(delSel).slice(0,3));
-  console.log('dirSel size:', dirSel.size, 'sample:', Array.from(dirSel).slice(0,4));
-  console.log('etdFrom:', etdFrom, 'etdTo:', etdTo);
-  console.log('etbFrom:', etbFrom, 'etbTo:', etbTo);
-  console.log('Total ALL_DATA:', ALL_DATA.length);
-
-  var lanePass = 0, culPass = 0, polPass = 0, delPass = 0, dirPass = 0, etdPass = 0, etaPass = 0, totalPass = 0;
-  // BZCF2621W specific debug
-  var bzcfLost = {lane:0, pol:0, del:0, cul:0, dir:0, etd:0, etb:0, pass:0};
-
   // Pre-scan: if ETB filter active, determine which CULs have any ETB in range
   var inRangeCuls = {};
   if (etbFrom || etbTo) {
@@ -501,41 +469,17 @@ function getFilteredData() {
   }
 
   var result = ALL_DATA.filter(function(r) {
-    var isBzcf = (r.cul_code === 'BZCF2621W');
-    if (!laneSel.has(r.lane)) { if (isBzcf) bzcfLost.lane++; return false; } else { lanePass++; }
-    if (!polSel.has(r.pol)) { if (isBzcf) bzcfLost.pol++; return false; } else { polPass++; }
-    if (!delSel.has(r.del_port)) { if (isBzcf) bzcfLost.del++; return false; } else { delPass++; }
-    if (!culSel.has(r.cul_code)) { if (isBzcf) bzcfLost.cul++; return false; } else { culPass++; }
+    if (!laneSel.has(r.lane)) return false;
+    if (!polSel.has(r.pol)) return false;
+    if (!delSel.has(r.del_port)) return false;
+    if (!culSel.has(r.cul_code)) return false;
     var recDir = r.direction || '';
-    if (recDir && !dirSel.has(recDir)) { if (isBzcf) bzcfLost.dir++; return false; } else { dirPass++; }
-    if (etdFrom && r.etd && r.etd < etdFrom) { if (isBzcf) bzcfLost.etd++; return false; } else { etdPass++; }
-    if (etdTo && r.etd && r.etd > etdTo) { if (isBzcf) bzcfLost.etd++; return false; }
-    if ((etbFrom || etbTo) && !inRangeCuls[r.cul_code]) { if (isBzcf) bzcfLost.eta++; return false; } else { etaPass++; }
-    if (isBzcf) bzcfLost.pass++;
-    totalPass++;
+    if (recDir && !dirSel.has(recDir)) return false;
+    if (etdFrom && r.etd && r.etd < etdFrom) return false;
+    if (etdTo && r.etd && r.etd > etdTo) return false;
+    if ((etbFrom || etbTo) && !inRangeCuls[r.cul_code]) return false;
     return true;
   });
-  if (bzcfLost.pass > 0 || bzcfLost.lane > 0 || bzcfLost.pol > 0 || bzcfLost.del > 0 || bzcfLost.dir > 0 || bzcfLost.etd > 0 || bzcfLost.eta > 0) {
-    console.log('[BZCF2621W] Total in raw:', ALL_DATA.filter(function(r){return r.cul_code==='BZCF2621W'}).length);
-    console.log('[BZCF2621W] Filtered: lane=', bzcfLost.lane, 'pol=', bzcfLost.pol, 'del=', bzcfLost.del, 'cul=', bzcfLost.cul, 'dir=', bzcfLost.dir, 'etd=', bzcfLost.etd, 'eta=', bzcfLost.eta, 'PASS=', bzcfLost.pass);
-  }
-
-  console.log('After lane filter:', lanePass);
-  console.log('After pol filter:', polPass);
-  console.log('After del filter:', delPass);
-  console.log('After cul filter:', culPass);
-  console.log('After dir filter:', dirPass);
-  console.log('After etd filter:', etdPass);
-  console.log('After eta filter:', etaPass);
-  console.log('Final result:', totalPass);
-  console.log('====================');
-
-  // Inline debug panel update
-  var debugEl = document.getElementById('debugPanel');
-  if (debugEl) {
-    debugEl.innerHTML = '<b>Debug:</b> lane=' + lanePass + ' pol=' + polPass + ' del=' + delPass + ' cul=' + culPass + ' dir=' + dirPass + ' etd=' + etdPass + ' eta=' + etaPass + ' <b style="color:#0f3460">final=' + totalPass + '</b>';
-    debugEl.style.display = 'block';
-  }
 
   return result;
 }
