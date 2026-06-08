@@ -740,10 +740,15 @@ function buildSummary(data) {
       Object.keys(polGroups).sort().forEach(function(polKey) {
         var pg = polGroups[polKey];
         var pgFEU = pg.ft40_sum + pg.ft40rf_sum;
+        // Use ETB from the first combo of this POL
+        var polETB = '';
+        for (var pi = 0; pi < pg.combos.length; pi++) {
+          if (pg.combos[pi].eta) { polETB = pg.combos[pi].eta; break; }
+        }
         tbody += '<tr class="detail-row hidden pol-total" data-parent="' + escapeHtml(lane) + '">';
         tbody += '<td></td><td></td>';
         tbody += '<td><b>' + escapeHtml(polKey) + ' TOTAL</b></td>';
-        tbody += '<td></td><td></td>';
+        tbody += '<td></td><td>' + (polETB || '-') + '</td>';
         tbody += '<td class="num">' + pg.ft20_sum.toLocaleString() + '</td>';
         tbody += '<td class="num">' + pg.ft40_sum.toLocaleString() + '</td>';
         tbody += '<td class="num">' + pg.ft40rf_sum.toLocaleString() + '</td>';
