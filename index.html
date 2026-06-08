@@ -499,8 +499,8 @@ function getFilteredData() {
     if (recDir && !dirSel.has(recDir)) { if (isBzcf) bzcfLost.dir++; return false; } else { dirPass++; }
     if (etdFrom && r.etd && r.etd < etdFrom) { if (isBzcf) bzcfLost.etd++; return false; } else { etdPass++; }
     if (etdTo && r.etd && r.etd > etdTo) { if (isBzcf) bzcfLost.etd++; return false; }
-    if (etbFrom && r.etb && r.etb < etbFrom) { if (isBzcf) bzcfLost.eta++; return false; } else { etaPass++; }
-    if (etbTo && r.etb && r.etb > etbTo) { if (isBzcf) bzcfLost.eta++; return false; }
+    if (etbFrom && (!r.etb || r.etb < etbFrom)) { if (isBzcf) bzcfLost.eta++; return false; } else { etaPass++; }
+    if (etbTo && (!r.etb || r.etb > etbTo)) { if (isBzcf) bzcfLost.eta++; return false; }
     if (isBzcf) bzcfLost.pass++;
     totalPass++;
     return true;
@@ -566,8 +566,8 @@ function cascadeFilters() {
     if (!allLanes && !laneSel.has(r.lane)) return;
     if (etdFrom && r.etd < etdFrom) return;
     if (etdTo && r.etd > etdTo) return;
-    if (etbFrom && r.etb && r.etb < etbFrom) return;
-    if (etbTo && r.etb && r.etb > etbTo) return;
+    if (etbFrom && (!r.etb || r.etb < etbFrom)) return;
+    if (etbTo && (!r.etb || r.etb > etbTo)) return;
     if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
     if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
     if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
