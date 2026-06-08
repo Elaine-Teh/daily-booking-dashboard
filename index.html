@@ -705,7 +705,14 @@ function buildSummary(data) {
         polGroups[c.pol].ft40rf_sum += c.ft40rf_sum;
       });
 
-      Object.keys(polGroups).sort().forEach(function(polKey) {
+      Object.keys(polGroups).sort(function(a, b) {
+        var ea = '', eb = '';
+        for (var si = 0; si < polGroups[a].combos.length; si++) { var eta = polGroups[a].combos[si].eta; if (eta && (!ea || eta < ea)) ea = eta; }
+        for (var si = 0; si < polGroups[b].combos.length; si++) { var eta = polGroups[b].combos[si].eta; if (eta && (!eb || eta < eb)) eb = eta; }
+        if (!ea && !eb) return a.localeCompare(b);
+        if (!ea) return 1; if (!eb) return -1;
+        return ea.localeCompare(eb);
+      }).forEach(function(polKey) {
         var pg = polGroups[polKey];
         var pgFEU = pg.ft40_sum + pg.ft40rf_sum;
         // Use ETB from the first combo of this POL
