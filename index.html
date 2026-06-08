@@ -674,8 +674,8 @@ function updateKPIs(data) {
   var tteu = data.reduce(function(s,r){return s+r.teu},0);
   document.getElementById('kpiTeu').textContent = tteu.toLocaleString();
   document.getElementById('kpiBooking').textContent = data.length.toLocaleString();
-  var tw = Math.ceil(data.reduce(function(s,r){return s+r.container_weight},0)/1000);
-  document.getElementById('kpiWeight').textContent = tw.toLocaleString();
+  var tw = Math.ceil(data.reduce(function(s,r){return s+r.container_weight},0)/1000*10)/10;
+  document.getElementById('kpiWeight').textContent = tw.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1});
 }
 
 // ============ SUMMARY TABLE ============
@@ -721,8 +721,8 @@ function buildSummary(data) {
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneBooking.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + Math.ceil(laneWeight/1000).toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + (laneBooking > 0 ? Math.ceil((laneWeight/1000)/laneBooking).toLocaleString() : '0') + '</td>';
+    tbody += '<td class="num highlight">' + (Math.ceil(laneWeight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+    tbody += '<td class="num highlight">' + (laneBooking > 0 ? (Math.ceil((laneWeight/1000)/laneBooking*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) : '0.0') + '</td>';
 
     tbody += '</tr>';
 
@@ -743,8 +743,8 @@ function buildSummary(data) {
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
       tbody += '<td class="num accent">' + culFEU.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culBooking.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + Math.ceil(culWeight/1000).toLocaleString() + '</td>';
-      tbody += '<td class="num">' + (culBooking > 0 ? Math.ceil((culWeight/1000)/culBooking).toLocaleString() : '0') + '</td>';
+      tbody += '<td class="num">' + (Math.ceil(culWeight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+      tbody += '<td class="num">' + (culBooking > 0 ? (Math.ceil((culWeight/1000)/culBooking*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) : '0.0') + '</td>';
 
       tbody += '</tr>';
       totalRows++;
@@ -779,9 +779,9 @@ function buildSummary(data) {
         tbody += '<td class="num">' + pg.ft40rf_sum.toLocaleString() + '</td>';
         tbody += '<td class="num accent">' + pgFEU.toLocaleString() + '</td>';
         tbody += '<td class="num">' + pg.booking_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + Math.ceil(pg.weight_sum/1000).toLocaleString() + '</td>';
-        var pgAvg = pg.booking_sum > 0 ? Math.ceil((pg.weight_sum/1000) / pg.booking_sum) : 0;
-        tbody += '<td class="num">' + pgAvg.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + (Math.ceil(pg.weight_sum/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+        var pgAvg = pg.booking_sum > 0 ? Math.ceil((pg.weight_sum/1000) / pg.booking_sum * 10) / 10 : 0;
+        tbody += '<td class="num">' + pgAvg.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
         tbody += '</tr>';
         totalRows++;
 
@@ -797,9 +797,9 @@ function buildSummary(data) {
           tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
           tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
           tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + Math.ceil(c.weight_sum/1000).toLocaleString() + '</td>';
-          var avg = c.booking_sum > 0 ? Math.ceil((c.weight_sum/1000) / c.booking_sum) : 0;
-          tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + (Math.ceil(c.weight_sum/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+          var avg = c.booking_sum > 0 ? Math.ceil((c.weight_sum/1000) / c.booking_sum * 10) / 10 : 0;
+          tbody += '<td class="num">' + avg.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
           tbody += '</tr>';
           totalRows++;
         });
@@ -917,7 +917,7 @@ function updateDetail(data) {
       '<td class="num">' + r.ft40 + '</td>' +
       '<td class="num"><b>' + r.teu + '</b></td>' +
       '<td class="num">' + r.booking_cnt + '</td>' +
-      '<td class="num">' + Math.ceil(r.container_weight/1000).toLocaleString() + '</td>' +
+      '<td class="num">' + (Math.ceil(r.container_weight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>' +
       '<td>' + escapeHtml(r.shipper) + '</td>' +
       '<td>' + escapeHtml(r.forwarder) + '</td>' +
       '</tr>';
