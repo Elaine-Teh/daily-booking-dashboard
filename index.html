@@ -51,6 +51,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .etd-filter input[type=date]:focus,.etb-filter input[type=date]:focus{border-color:#0f3460}
 .etd-filter .etd-sep,.etb-filter .etd-sep{color:#999;font-size:13px}
 
+/* SUL_YN Segmented Filter */
+.sul-filter{display:flex;align-items:center;gap:6px}
+.sul-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+.sul-seg{display:flex;border-radius:6px;overflow:hidden;border:1px solid #ddd}
+.sul-seg button{padding:5px 14px;font-size:12px;font-weight:600;border:none;background:#f5f6fa;color:#666;cursor:pointer;transition:.15s;border-right:1px solid #ddd}
+.sul-seg button:last-child{border-right:none}
+.sul-seg button.active{background:#0f3460;color:#fff}
+.sul-seg button:hover:not(.active){background:#e8f0fe}
+
 /* KPI Cards */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:14px}
 .kpi-card{background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.08);text-align:center}
@@ -213,6 +222,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <span class="etd-sep">~</span>
       <input type="date" id="etbTo" title="POL ETB To">
     </div>
+    <div class="sul-filter">
+      <label>SUL_YN</label>
+      <div class="sul-seg" id="sulSeg">
+        <button data-sul="ALL" class="active">ALL</button>
+        <button data-sul="SUL">SUL</button>
+        <button data-sul="CUL">CUL</button>
+      </div>
+    </div>
     <span class="filter-clear" id="resetAll">Reset All</span>
   </div>
 
@@ -357,6 +374,17 @@ var msLane, msPol, msDel, msCul, msDir;
     });
 })();
 
+// SUL_YN FILTER
+var sulFilter = "ALL";
+function setSulFilter(val, btn) {
+  sulFilter = val;
+  document.querySelectorAll("#sulSeg button").forEach(function(b){b.classList.remove("active")});
+  btn.classList.add("active"); refreshAll(); saveFilterState();
+}
+document.querySelectorAll("#sulSeg button").forEach(function(b){
+  b.onclick = function(){ setSulFilter(this.dataset.sul, this); };
+});
+
 // ============ MULTI-SELECT ENGINE ============
 function buildMultiSelect(id, items, onChange, label) {
   label = label || id;
@@ -475,6 +503,9 @@ function getFilteredData() {
     if (!culSel.has(r.cul_code)) return false;
     var recDir = r.direction || '';
     if (recDir && !dirSel.has(recDir)) return false;
+    // SUL_YN filter
+    if (sulFilter === 'SUL' && r.sul_yn !== 'Y') return false;
+    if (sulFilter === 'CUL' && r.sul_yn !== 'N') return false;
     if (etdFrom && r.etd && r.etd < etdFrom) return false;
     if (etdTo && r.etd && r.etd > etdTo) return false;
     if ((etbFrom || etbTo) && !inRangeCuls[r.cul_code]) return false;
@@ -939,6 +970,7 @@ function saveFilterState() {
       etdTo: document.getElementById('etdTo').value,
       etbFrom: document.getElementById('etbFrom').value,
       etbTo: document.getElementById('etbTo').value,
+      sul: sulFilter,
       detailSearch: document.getElementById('detailSearch').value
     };
     localStorage.setItem('db_filter_state', JSON.stringify(state));
@@ -967,6 +999,14 @@ function restoreFilterState() {
     if (state.etdTo) document.getElementById('etdTo').value = state.etdTo;
     if (state.etbFrom) document.getElementById('etbFrom').value = state.etbFrom;
     if (state.etbTo) document.getElementById('etbTo').value = state.etbTo;
+
+    // Restore SUL_YN filter
+    if (state.sul && state.sul !== 'ALL') {
+      sulFilter = state.sul;
+      document.querySelectorAll("#sulSeg button").forEach(function(b){
+        b.classList.toggle("active", b.dataset.sul === state.sul);
+      });
+    }
 
     // Step 3: Manually set saved CUL/POL/DEL/DIR selections BEFORE cascade
     if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
@@ -1049,6 +1089,11 @@ document.getElementById('resetAll').onclick = function() {
   etbFrom.value = ''; etbTo.value = '';
   if (GLOBAL_ETB_MIN) { etbFrom.min = GLOBAL_ETB_MIN; etbFrom.max = GLOBAL_ETB_MAX; }
   if (GLOBAL_ETB_MIN) { etbTo.min = GLOBAL_ETB_MIN; etbTo.max = GLOBAL_ETB_MAX; }
+  // Reset SUL_YN to ALL
+  sulFilter = "ALL";
+  document.querySelectorAll("#sulSeg button").forEach(function(b){
+    b.classList.toggle("active", b.dataset.sul === "ALL");
+  });
   refreshAll();
   saveFilterState();
 };
