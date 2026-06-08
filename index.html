@@ -800,9 +800,14 @@ function toggleLane(row) {
   row.classList.toggle('collapsed', !row.classList.contains('expanded'));
   var lane = row.dataset.lane;
   var visible = row.classList.contains('expanded');
-  document.querySelectorAll('[data-parent="' + lane + '"]').forEach(function(r) {
+  // Show CUL + POL TOTAL rows; keep DEL rows hidden by default
+  document.querySelectorAll('[data-parent="' + lane + '"]:not(.pol-del)').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
   });
+  // When collapsing, also hide DEL rows and reset POL expanded state
+  if (!visible) {
+    document.querySelectorAll('[data-pol]').forEach(function(r) { r.classList.remove('expanded'); });
+  }
 }
 
 function togglePolTotal(row) {
