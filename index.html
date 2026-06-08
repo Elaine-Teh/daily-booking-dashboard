@@ -489,6 +489,17 @@ function getFilteredData() {
   var lanePass = 0, culPass = 0, polPass = 0, delPass = 0, dirPass = 0, etdPass = 0, etaPass = 0, totalPass = 0;
   // BZCF2621W specific debug
   var bzcfLost = {lane:0, pol:0, del:0, cul:0, dir:0, etd:0, etb:0, pass:0};
+
+  // Pre-scan: if ETB filter active, determine which CULs have any ETB in range
+  var inRangeCuls = {};
+  if (etbFrom || etbTo) {
+    ALL_DATA.forEach(function(r) {
+      if (r.etb && (!etbFrom || r.etb >= etbFrom) && (!etbTo || r.etb <= etbTo)) {
+        inRangeCuls[r.cul_code] = true;
+      }
+    });
+  }
+
   var result = ALL_DATA.filter(function(r) {
     var isBzcf = (r.cul_code === 'BZCF2621W');
     if (!laneSel.has(r.lane)) { if (isBzcf) bzcfLost.lane++; return false; } else { lanePass++; }
@@ -499,8 +510,7 @@ function getFilteredData() {
     if (recDir && !dirSel.has(recDir)) { if (isBzcf) bzcfLost.dir++; return false; } else { dirPass++; }
     if (etdFrom && r.etd && r.etd < etdFrom) { if (isBzcf) bzcfLost.etd++; return false; } else { etdPass++; }
     if (etdTo && r.etd && r.etd > etdTo) { if (isBzcf) bzcfLost.etd++; return false; }
-    if (etbFrom && (!r.etb || r.etb < etbFrom)) { if (isBzcf) bzcfLost.eta++; return false; } else { etaPass++; }
-    if (etbTo && (!r.etb || r.etb > etbTo)) { if (isBzcf) bzcfLost.eta++; return false; }
+    if ((etbFrom || etbTo) && !inRangeCuls[r.cul_code]) { if (isBzcf) bzcfLost.eta++; return false; } else { etaPass++; }
     if (isBzcf) bzcfLost.pass++;
     totalPass++;
     return true;
@@ -559,15 +569,25 @@ function cascadeFilters() {
     return;
   }
 
-  // Filter ALL_DATA by current Lane + ETD selection
+  // Filter ALL_DATA by current Lane + ETD selection, with CUL-level ETB
   var culPool = [], polPool = [], delPool = [];
   var culSet = {}, polSet = {}, delSet = {};
+
+  // Pre-scan for ETB: which CULs have in-range ETB
+  var cInRangeCuls = {};
+  if (!allETA) {
+    ALL_DATA.forEach(function(r) {
+      if (r.etb && (!etbFrom || r.etb >= etbFrom) && (!etbTo || r.etb <= etbTo)) {
+        cInRangeCuls[r.cul_code] = true;
+      }
+    });
+  }
+
   ALL_DATA.forEach(function(r) {
     if (!allLanes && !laneSel.has(r.lane)) return;
     if (etdFrom && r.etd < etdFrom) return;
     if (etdTo && r.etd > etdTo) return;
-    if (etbFrom && (!r.etb || r.etb < etbFrom)) return;
-    if (etbTo && (!r.etb || r.etb > etbTo)) return;
+    if (!allETA && !cInRangeCuls[r.cul_code]) return;
     if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
     if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
     if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
