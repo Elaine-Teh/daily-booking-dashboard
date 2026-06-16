@@ -1,1107 +1,1099 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<title>Daily Booking Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#1a1a2e}
-.header{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
-.header h1{font-size:20px;font-weight:600}
-.header .updated{font-size:12px;opacity:.7}
-.container{max-width:1400px;margin:0 auto;padding:16px 20px}
-
-/* Filters Bar */
-.filters-bar{background:#fff;border-radius:10px;padding:14px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-.filter-group{display:flex;align-items:center;gap:6px}
-.filter-group label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
-
-/* Multi-Select Dropdown */
-.multi-select{position:relative;min-width:200px}
-.multi-select .ms-trigger{display:flex;align-items:center;justify-content:space-between;background:#f5f6fa;border:1px solid #ddd;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;min-width:160px;user-select:none;transition:border-color .2s}
-.multi-select .ms-trigger:hover{border-color:#0f3460}
-.multi-select.active .ms-trigger{border-color:#0f3460;box-shadow:0 0 0 2px rgba(15,52,96,.15)}
-.ms-trigger .ms-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-.ms-trigger .ms-arrow{font-size:10px;margin-left:6px;transition:transform .2s;color:#888}
-.multi-select.active .ms-arrow{transform:rotate(180deg)}
-.ms-dropdown{display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:1000;min-width:280px;max-height:380px;overflow:hidden}
-.multi-select.active .ms-dropdown{display:block}
-.ms-search{width:100%;border:none;border-bottom:1px solid #eee;padding:10px 12px;font-size:13px;outline:none}
-.ms-actions{display:flex;gap:8px;padding:8px 12px;border-bottom:1px solid #eee}
-.ms-actions button{flex:1;padding:4px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;transition:.15s}
-.ms-actions button:hover{background:#0f3460;color:#fff;border-color:#0f3460}
-.ms-list{max-height:260px;overflow-y:auto;padding:4px 0}
-.ms-list label{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:13px;cursor:pointer;transition:background .1s}
-.ms-list label:hover{background:#f0f4ff}
-.ms-list input[type=checkbox]{accent-color:#0f3460}
-.ms-badge{display:inline-block;background:#0f3460;color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;margin-left:4px}
-.ms-count{font-size:11px;color:#999;margin-left:auto}
-.filter-clear{font-size:11px;color:#e74c3c;cursor:pointer;text-decoration:underline;white-space:nowrap}
-.filter-clear:hover{color:#c0392b}
-
-/* ETD/ETB Date Range Filter */
-.etd-filter,.etb-filter{display:flex;align-items:center;gap:6px;background:#f5f6fa;border:1px solid #ddd;border-radius:6px;padding:6px 10px}
-.etd-filter label,.etb-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
-.etd-filter input[type=date],.etb-filter input[type=date]{border:1px solid #ddd;border-radius:4px;padding:4px 8px;font-size:13px;outline:none;background:#fff;cursor:pointer}
-.etd-filter input[type=date]:focus,.etb-filter input[type=date]:focus{border-color:#0f3460}
-.etd-filter .etd-sep,.etb-filter .etd-sep{color:#999;font-size:13px}
-
-/* SUL_YN Segmented Filter */
-.sul-filter{display:flex;align-items:center;gap:6px}
-.sul-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
-.sul-seg{display:flex;border-radius:6px;overflow:hidden;border:1px solid #ddd}
-.sul-seg button{padding:5px 14px;font-size:12px;font-weight:600;border:none;background:#f5f6fa;color:#666;cursor:pointer;transition:.15s;border-right:1px solid #ddd}
-.sul-seg button:last-child{border-right:none}
-.sul-seg button.active{background:#0f3460;color:#fff}
-.sul-seg button:hover:not(.active){background:#e8f0fe}
-
-/* KPI Cards */
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:14px}
-.kpi-card{background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.08);text-align:center}
-.kpi-card .kpi-value{font-size:28px;font-weight:700;color:#0f3460;line-height:1.2}
-.kpi-card .kpi-label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
-.kpi-card.accent .kpi-value{color:#e74c3c}
-
-/* Charts */
-.chart-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
-.chart-box{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.chart-box h3{font-size:14px;font-weight:600;color:#1a1a2e;margin-bottom:12px}
-.chart-box canvas{max-height:320px}
-
-/* Summary Table */
-.summary-section{background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.summary-section h2{font-size:15px;font-weight:600;color:#1a1a2e;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.summary-section h2 .badge{font-size:11px;font-weight:400;background:#e8f0fe;color:#0f3460;padding:2px 8px;border-radius:10px}
-.summary-table{width:100%;border-collapse:collapse;font-size:13px}
-.summary-table th{background:#f5f6fa;padding:8px 10px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;color:#666;border-bottom:2px solid #e0e0e0;white-space:nowrap}
-.summary-table td{padding:8px 10px;border-bottom:1px solid #eee}
-.summary-table .lane-row{background:#f0f4ff;font-weight:700;cursor:pointer}
-.summary-table .lane-row td{font-size:13px;color:#0f3460}
-.summary-table .lane-row .expand-icon{display:inline-block;width:16px;text-align:center;transition:transform .2s}
-.summary-table .lane-row.expanded .expand-icon{transform:rotate(90deg)}
-.summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
-.summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
-.summary-table tr.detail-row.hidden{display:none}
-.summary-table tr.detail-row.pol-total td{background:#e8f0fe;font-weight:700;color:#0f3460;border-bottom:2px solid #c5d5f0;cursor:pointer}
-.summary-table tr.detail-row.pol-total td.num{color:#0f3460;font-weight:700}
-.summary-table tr.detail-row.pol-total td.nest{color:#0f3460;font-weight:700}
-.summary-table .pol-total .expand-icon{display:inline-block;width:14px;text-align:center;transition:transform .2s;font-size:11px}
-.summary-table .pol-total.expanded .expand-icon{transform:rotate(90deg)}
-.summary-table tr.detail-row.pol-del.hidden{display:none}
-.summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
-.summary-table .highlight{color:#0f3460;font-weight:600}
-
-/* Detail Table */
-.detail-section{background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.detail-section h2{font-size:15px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
-.detail-search{width:240px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;outline:none}
-.detail-search:focus{border-color:#0f3460}
-.detail-table-wrap{max-height:500px;overflow:auto}
-.detail-table{width:100%;border-collapse:collapse;font-size:12px}
-.detail-table th{position:sticky;top:0;background:#f5f6fa;padding:8px 8px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;color:#666;z-index:1}
-.detail-table td{padding:7px 8px;border-bottom:1px solid #f0f0f0;white-space:nowrap}
-.detail-table tr:hover{background:#f8faff}
-.detail-info{font-size:12px;color:#999;margin-top:8px}
-
-/* Notes Panel */
-.notes-section{background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.notes-section h2{font-size:15px;font-weight:600;margin-bottom:12px}
-.notes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
-.note-card{background:#fafbfc;border:1px solid #eee;border-radius:8px;padding:10px 12px}
-.note-card .note-vvd{font-size:12px;font-weight:600;color:#0f3460;margin-bottom:6px}
-.note-card textarea{width:100%;border:1px solid #e0e0e0;border-radius:4px;padding:8px;font-size:12px;resize:vertical;min-height:50px;font-family:inherit;outline:none}
-.note-card textarea:focus{border-color:#0f3460}
-.note-card .note-save{font-size:10px;color:#27ae60;margin-top:4px}
-.note-actions{display:flex;gap:8px;margin-bottom:10px}
-.note-actions button{padding:4px 12px;font-size:12px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer}
-.note-actions button:hover{background:#0f3460;color:#fff;border-color:#0f3460}
-.note-actions button.primary{background:#0f3460;color:#fff;border-color:#0f3460}
-
-@media(max-width:1100px){.chart-row{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}.filters-bar{flex-direction:column;align-items:stretch}}
-</style>
-</head>
-<body>
-<div class="header">
-  <h1>📊 Daily Booking Dashboard</h1>
-  <span class="updated" id="headerUpdated">Loading...</span>
-</div>
-
-<div id="loadingArea" style="padding:80px 20px;text-align:center;color:#888;font-size:16px">
-  <div style="margin-bottom:12px">⏳ Loading dashboard data...</div>
-  <div style="font-size:13px;color:#bbb">Fetching db_data.json.gz</div>
-</div>
-<div id="errorMsg" style="display:none;padding:60px 20px;text-align:center;color:#e74c3c;font-size:16px"></div>
-
-<div id="dashboardContent" style="display:none">
-<div class="container">
-  <!-- FILTERS -->
-  <div class="filters-bar">
-    <div class="filter-group">
-      <label>Trunk Lane</label>
-      <div class="multi-select" id="msLane" style="min-width:180px">
-        <div class="ms-trigger" id="msLaneTrigger"><span class="ms-text">All Lanes</span><span class="ms-arrow">▼</span></div>
-        <div class="ms-dropdown" id="msLaneDropdown">
-          <input class="ms-search" id="msLaneSearch" placeholder="Search Lane...">
-          <div class="ms-actions">
-            <button id="msLaneAll">Select All</button>
-            <button id="msLaneNone">Clear All</button>
-          </div>
-          <div class="ms-list" id="msLaneList"></div>
-        </div>
-      </div>
-    </div>
-    <div class="filter-group">
-      <label>CUL Code</label>
-      <div class="multi-select" id="msCul">
-        <div class="ms-trigger" id="msCulTrigger"><span class="ms-text">All CULs</span><span class="ms-arrow">▼</span></div>
-        <div class="ms-dropdown" id="msCulDropdown">
-          <input class="ms-search" id="msCulSearch" placeholder="Search CUL Code...">
-          <div class="ms-actions">
-            <button id="msCulAll">Select All</button>
-            <button id="msCulNone">Clear All</button>
-          </div>
-          <div class="ms-list" id="msCulList"></div>
-        </div>
-      </div>
-    </div>
-    <div class="filter-group">
-      <label>Direction</label>
-      <div class="multi-select" id="msDir" style="min-width:140px">
-        <div class="ms-trigger" id="msDirTrigger"><span class="ms-text">All Directions</span><span class="ms-arrow">▼</span></div>
-        <div class="ms-dropdown" id="msDirDropdown">
-          <div class="ms-actions">
-            <button id="msDirAll">Select All</button>
-            <button id="msDirNone">Clear All</button>
-          </div>
-          <div class="ms-list" id="msDirList"></div>
-        </div>
-      </div>
-    </div>
-    <div class="filter-group">
-      <label>POL</label>
-      <div class="multi-select" id="msPol">
-        <div class="ms-trigger" id="msPolTrigger"><span class="ms-text">All POLs</span><span class="ms-arrow">▼</span></div>
-        <div class="ms-dropdown" id="msPolDropdown">
-          <input class="ms-search" id="msPolSearch" placeholder="Search POL...">
-          <div class="ms-actions">
-            <button id="msPolAll">Select All</button>
-            <button id="msPolNone">Clear All</button>
-          </div>
-          <div class="ms-list" id="msPolList"></div>
-        </div>
-      </div>
-    </div>
-    <div class="filter-group">
-      <label>DEL</label>
-      <div class="multi-select" id="msDel">
-        <div class="ms-trigger" id="msDelTrigger"><span class="ms-text">All DELs</span><span class="ms-arrow">▼</span></div>
-        <div class="ms-dropdown" id="msDelDropdown">
-          <input class="ms-search" id="msDelSearch" placeholder="Search DEL...">
-          <div class="ms-actions">
-            <button id="msDelAll">Select All</button>
-            <button id="msDelNone">Clear All</button>
-          </div>
-          <div class="ms-list" id="msDelList"></div>
-        </div>
-      </div>
-    </div>
-    <div class="etd-filter">
-      <label>ETD</label>
-      <input type="date" id="etdFrom" title="ETD From">
-      <span class="etd-sep">~</span>
-      <input type="date" id="etdTo" title="ETD To">
-    </div>
-    <div class="etd-filter">
-      <label>POL ETB</label>
-      <input type="date" id="etbFrom" title="POL ETB From">
-      <span class="etd-sep">~</span>
-      <input type="date" id="etbTo" title="POL ETB To">
-    </div>
-    <div class="sul-filter">
-      <label>SUL_YN</label>
-      <div class="sul-seg" id="sulSeg">
-        <button data-sul="ALL" class="active">ALL</button>
-        <button data-sul="SUL">SUL</button>
-        <button data-sul="CUL">CUL</button>
-      </div>
-    </div>
-    <span class="filter-clear" id="resetAll">Reset All</span>
-  </div>
-
-  <!-- KPI CARDS -->
-  <div class="kpi-row">
-    <div class="kpi-card"><div class="kpi-value" id="kpiLane">0</div><div class="kpi-label">Lanes</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpi20">0</div><div class="kpi-label">20ft</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpi40">0</div><div class="kpi-label">40ft</div></div>
-    <div class="kpi-card accent"><div class="kpi-value" id="kpiTeu">0</div><div class="kpi-label">Total TEU</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpiBooking">0</div><div class="kpi-label">Booking Count</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpiWeight">0</div><div class="kpi-label">Container Weight</div></div>
-  </div>
-  <!-- SUMMARY TABLE -->
-  <div class="summary-section">
-    <h2>📋 Summary by Trunk Lane & CUL Code <span class="badge" id="summaryCount"></span></h2>
-    <div style="overflow-x:auto">
-      <table class="summary-table" id="summaryTable"><thead>
-        <tr>
-          <th style="min-width:80px">TRUNK LANE</th>
-          <th style="min-width:110px">CUL CODE</th>
-          <th style="min-width:80px">POL</th>
-          <th style="min-width:80px">DEL</th>
-          <th style="min-width:80px">ETB</th>
-          <th class="num" style="min-width:60px">20ft</th>
-          <th class="num" style="min-width:60px">40ft</th>
-          <th class="num" style="min-width:60px">40RF</th>
-          <th class="num accent" style="min-width:60px">FEU</th>
-          <th class="num">Sum of Booking</th>
-          <th class="num">Sum of Container Weight</th>
-          <th class="num">Avg Weight</th>
-        </tr>
-      </thead><tbody></tbody></table>
-    </div>
-  </div>
-
-  <!-- CHARTS -->
-  <div class="chart-row">
-    <div class="chart-box"><h3>TEU by POL</h3><canvas id="chartPol"></canvas></div>
-    <div class="chart-box"><h3>TEU by DEL</h3><canvas id="chartDel"></canvas></div>
-    <div class="chart-box"><h3>Volume by DEL (Weight)</h3><canvas id="chartDelVol"></canvas></div>
-  </div>
-
-  <!-- DETAIL TABLE -->
-  <div class="detail-section">
-    <h2>📄 Detail Data <input class="detail-search" id="detailSearch" placeholder="Search BL / Shipper / Forwarder..."></h2>
-    <div class="detail-table-wrap">
-      <table class="detail-table" id="detailTable"><thead><tr>
-        <th>BL No.</th><th>CUL Code</th><th>Trunk VVD</th><th>Lane</th><th>POR</th><th>POL</th><th>ETD</th><th>POD</th><th>DEL</th><th>20ft</th><th>40ft</th><th>TEU</th><th>Booking</th><th>Weight</th><th>Shipper</th><th>Forwarder</th>
-      </tr></thead><tbody></tbody></table>
-    </div>
-    <div class="detail-info" id="detailCount"></div>
-  </div>
-
-  <!-- NOTES -->
-  <div class="notes-section">
-    <h2>✏️ Custom Notes <span style="font-weight:400;font-size:12px;color:#999">— saved automatically per Lane</span></h2>
-    <div class="note-actions">
-      <button class="primary" id="btnAddNote">+ Add Note for Selected Lane</button>
-      <button id="btnClearNotes">Clear All Notes</button>
-    </div>
-    <div class="notes-grid" id="notesGrid"></div>
-  </div>
-</div>
-</div>
-
-<script>
-Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
-Chart.defaults.font.size = 11;
-
-var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST, DIR_LIST;
-var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP, LANE_ETD_MAP, LANE_ETB_MAP;
-var GLOBAL_ETD_MIN, GLOBAL_ETD_MAX;
-var GLOBAL_ETB_MIN, GLOBAL_ETB_MAX;
-var msLane, msPol, msDel, msCul, msDir;
-
-// ============ DATA LOADING ============
-(function loadData() {
-  var loadingEl = document.getElementById('loadingArea');
-  var contentEl = document.getElementById('dashboardContent');
-  var errorMsg = document.getElementById('errorMsg');
-  var loadStart = Date.now();
-
-  function showError(msg, detail) {
-    loadingEl.style.display = 'none';
-    errorMsg.style.display = 'block';
-    errorMsg.innerHTML = '<b>Failed to load data</b><br>' + msg +
-      (detail ? '<br><span style="font-size:12px;color:#999">' + detail + '</span>' : '');
-  }
-
-  // Abort after 60 seconds (decompression can take time)
-  var controller = new AbortController();
-  var timeoutId = setTimeout(function() {
-    controller.abort();
-  }, 60000);
-
-  fetch('db_data.json.gz?ts=' + Date.now(), {signal: controller.signal, cache: 'no-store'})
-    .then(function(r) {
-      clearTimeout(timeoutId);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      // Decompress gzip stream client-side
-      return r.body.pipeThrough(new DecompressionStream('gzip'));
-    })
-    .then(function(decompressedStream) {
-      return new Response(decompressedStream).text();
-    })
-    .then(function(text) {
-      return JSON.parse(text);
-    })
-    .then(function(payload) {
-      ALL_DATA = payload.data;
-      LANE_LIST = payload.lane_list;
-      POL_LIST = payload.pol_list;
-      DEL_LIST = payload.del_list;
-      CUL_LIST = payload.cul_list;
-      DIR_LIST = payload.dir_list || ['E','N','S','W'];
-      LANE_CUL_MAP = payload.lane_cul_map || {};
-      LANE_POL_MAP = payload.lane_pol_map || {};
-      LANE_DEL_MAP = payload.lane_del_map || {};
-      LANE_ETD_MAP = payload.lane_etd_map || {};
-      LANE_ETB_MAP = payload.lane_etb_map || {};
-
-      loadingEl.style.display = 'none';
-      contentEl.style.display = 'block';
-      document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
-
-      initFilters();
-      initETDRange(payload.etd_min, payload.etd_max);
-      initETARange(payload.etb_min, payload.etb_max);
-      restoreFilterState();
-      refreshAll(); // always render, even if restore failed
-    })
-    .catch(function(err) {
-      clearTimeout(timeoutId);
-      loadingEl.style.display = 'none';
-      var elapsed = ((Date.now() - loadStart) / 1000).toFixed(1);
-      if (err.name === 'AbortError') {
-        showError('Request timed out after 30 seconds.', 'The data file (~27MB) may be too large for your current network. Try refreshing or check your connection.');
-      } else {
-        showError(err.message, 'Time elapsed: ' + elapsed + 's | Please check browser console (F12) for details.');
-      }
-      console.error('Data load error:', err);
-    });
-})();
-
-// SUL_YN FILTER
-var sulFilter = "ALL";
-function setSulFilter(val, btn) {
-  sulFilter = val;
-  document.querySelectorAll("#sulSeg button").forEach(function(b){b.classList.remove("active")});
-  btn.classList.add("active"); refreshAll(); saveFilterState();
-}
-document.querySelectorAll("#sulSeg button").forEach(function(b){
-  b.onclick = function(){ setSulFilter(this.dataset.sul, this); };
-});
-
-// ============ MULTI-SELECT ENGINE ============
-function buildMultiSelect(id, items, onChange, label) {
-  label = label || id;
-  var root = document.getElementById('ms' + id);
-  var trigger = document.getElementById('ms' + id + 'Trigger');
-  var dropdown = document.getElementById('ms' + id + 'Dropdown');
-  var search = document.getElementById('ms' + id + 'Search');
-  var list = document.getElementById('ms' + id + 'List');
-  var btnAll = document.getElementById('ms' + id + 'All');
-  var btnNone = document.getElementById('ms' + id + 'None');
-
-  var selected = new Set(items);
-  var currentItems = items;
-  var _suppressed = false;  // batch-restore guard
-
-  function updateTrigger() {
-    var count = selected.size, total = currentItems.length;
-    var txt;
-    if (total === 0) txt = '0 available';
-    else if (count === total) txt = 'All ' + label + 's';
-    else txt = count + ' ' + label + ' selected';
-    trigger.querySelector('.ms-text').textContent = txt;
-    if (trigger.querySelector('.ms-badge')) trigger.querySelector('.ms-badge').remove();
-    if (count > 0 && count < total) {
-      var badge = document.createElement('span'); badge.className = 'ms-badge'; badge.textContent = count;
-      trigger.appendChild(badge);
-    }
-  }
-
-  function renderList(filter) {
-    list.innerHTML = '';
-    var filt = (filter || '').toLowerCase();
-    currentItems.forEach(function(item) {
-      if (filt && item.toLowerCase().indexOf(filt) === -1) return;
-      var label = document.createElement('label');
-      var cb = document.createElement('input');
-      cb.type = 'checkbox'; cb.checked = selected.has(item);
-      cb.onchange = function() {
-        if (cb.checked) selected.add(item); else selected.delete(item);
-        updateTrigger(); if (!_suppressed) onChange(selected);
-      };
-      label.appendChild(cb);
-      label.appendChild(document.createTextNode(item));
-      list.appendChild(label);
-    });
-  }
-
-  function toggle() {
-    root.classList.toggle('active');
-    if (root.classList.contains('active')) {
-      if (search) { search.value = ''; search.focus(); }
-      renderList('');
-    }
-  }
-
-  trigger.onclick = function(e) { e.stopPropagation(); toggle(); };
-  if (search) { search.oninput = function() { renderList(search.value); }; }
-  btnAll.onclick = function(e) { e.stopPropagation(); selected = new Set(currentItems); updateTrigger(); renderList(search ? search.value : ''); if (!_suppressed) onChange(selected); };
-  btnNone.onclick = function(e) { e.stopPropagation(); selected = new Set(); updateTrigger(); renderList(search ? search.value : ''); if (!_suppressed) onChange(selected); };
-
-  document.addEventListener('click', function(e) {
-    if (!root.contains(e.target)) root.classList.remove('active');
-  });
-
-  updateTrigger(); renderList('');
-  return {
-    getSelected: function() { return selected; },
-    getItems: function() { return currentItems; },
-    _suppress: function(s) { _suppressed = s; },
-    setAll: function() { selected = new Set(currentItems); updateTrigger(); renderList(''); },
-    clear: function() { selected = new Set(); updateTrigger(); renderList(''); },
-    setSelected: function(items) {
-      var validSet = new Set(currentItems);
-      selected = new Set(Array.isArray(items) ? items.filter(function(x){return validSet.has(x)}) : []);
-      if (selected.size === 0 && currentItems.length > 0) selected = new Set(currentItems);
-      updateTrigger(); renderList('');
-    },
-    updateItems: function(newItems) {
-      currentItems = newItems;
-      // Keep only selections that exist in new items
-      var newSet = new Set(newItems);
-      selected = new Set(Array.from(selected).filter(function(x){return newSet.has(x)}));
-      // If nothing selected, select all new items
-      if (selected.size === 0 && newItems.length > 0) selected = new Set(newItems);
-      updateTrigger(); renderList('');
-    }
-  };
-}
-
-// ============ FILTERING LOGIC ============
-function getFilteredData() {
-  var laneSel = msLane.getSelected();
-  var polSel = msPol.getSelected();
-  var delSel = msDel.getSelected();
-  var culSel = msCul.getSelected();
-  var dirSel = msDir.getSelected();
-  var etdFrom = document.getElementById('etdFrom').value;
-  var etdTo = document.getElementById('etdTo').value;
-  var etbFrom = document.getElementById('etbFrom').value;
-  var etbTo = document.getElementById('etbTo').value;
-
-  // Pre-scan: if ETB filter active, determine which CULs have any ETB in range
-  var inRangeCuls = {};
-  if (etbFrom || etbTo) {
-    ALL_DATA.forEach(function(r) {
-      if (r.etb && (!etbFrom || r.etb >= etbFrom) && (!etbTo || r.etb <= etbTo)) {
-        inRangeCuls[r.cul_code] = true;
-      }
-    });
-  }
-
-  var result = ALL_DATA.filter(function(r) {
-    if (!laneSel.has(r.lane)) return false;
-    if (!polSel.has(r.pol)) return false;
-    if (!delSel.has(r.del_port)) return false;
-    if (!culSel.has(r.cul_code)) return false;
-    var recDir = r.direction || '';
-    if (recDir && !dirSel.has(recDir)) return false;
-    // SUL_YN filter
-    if (sulFilter === 'SUL' && r.sul_yn !== 'Y') return false;
-    if (sulFilter === 'CUL' && r.sul_yn !== 'N') return false;
-    if (etdFrom && r.etd && r.etd < etdFrom) return false;
-    if (etdTo && r.etd && r.etd > etdTo) return false;
-    if ((etbFrom || etbTo) && !inRangeCuls[r.cul_code]) return false;
-    return true;
-  });
-
-  return result;
-}
-
-// ============ INIT ============
-function initFilters() {
-  msLane = buildMultiSelect('Lane', LANE_LIST, function() { onLaneChange(msLane.getSelected()); saveFilterState(); }, 'LANE');
-  msPol = buildMultiSelect('Pol', POL_LIST, function() { refreshAll(); saveFilterState(); }, 'POL');
-  msDel = buildMultiSelect('Del', DEL_LIST, function() { refreshAll(); saveFilterState(); }, 'DEL');
-  msCul = buildMultiSelect('Cul', CUL_LIST, function() { refreshAll(); saveFilterState(); }, 'CUL');
-  msDir = buildMultiSelect('Dir', DIR_LIST, function() { refreshAll(); saveFilterState(); }, 'Direction');
-}
-
-// ============ CASCADING FILTER ============
-// Unified cascade: update CUL/POL/DEL pools based on current Lane + ETD selection
-function cascadeFilters() {
-  var laneSel = msLane.getSelected();
-  var etdFrom = document.getElementById('etdFrom').value;
-  var etdTo = document.getElementById('etdTo').value;
-  var etbFrom = document.getElementById('etbFrom').value;
-  var etbTo = document.getElementById('etbTo').value;
-  var allLanes = (laneSel.size === 0 || laneSel.size === LANE_LIST.length);
-  var allETD = (!etdFrom && !etdTo);
-  var allETA = (!etbFrom && !etbTo);
-
-  // If both Lane, ETD, and ETA are "all", restore full lists and select all
-  if (allLanes && allETD && allETA) {
-    msCul.updateItems(CUL_LIST); msCul.setAll();
-    msPol.updateItems(POL_LIST); msPol.setAll();
-    msDel.updateItems(DEL_LIST); msDel.setAll();
-    return;
-  }
-
-  // Filter ALL_DATA by current Lane + ETD selection, with CUL-level ETB
-  var culPool = [], polPool = [], delPool = [];
-  var culSet = {}, polSet = {}, delSet = {};
-
-  // Pre-scan for ETB: which CULs have in-range ETB
-  var cInRangeCuls = {};
-  if (!allETA) {
-    ALL_DATA.forEach(function(r) {
-      if (r.etb && (!etbFrom || r.etb >= etbFrom) && (!etbTo || r.etb <= etbTo)) {
-        cInRangeCuls[r.cul_code] = true;
-      }
-    });
-  }
-
-  ALL_DATA.forEach(function(r) {
-    if (!allLanes && !laneSel.has(r.lane)) return;
-    if (etdFrom && r.etd < etdFrom) return;
-    if (etdTo && r.etd > etdTo) return;
-    if (!allETA && !cInRangeCuls[r.cul_code]) return;
-    if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
-    if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
-    if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
-  });
-  culPool.sort(); polPool.sort(); delPool.sort();
-
-  msCul.updateItems(culPool);
-  msPol.updateItems(polPool);
-  msDel.updateItems(delPool);
-  // During normal user interaction, reset to show all available options
-  if (!window._isRestoring) {
-    msCul.setAll(); msPol.setAll(); msDel.setAll();
-  }
-}
-
-function onLaneChange(selectedLanes) {
-  // Adjust ETD range to selected lane(s) data range
-  var fromEl = document.getElementById('etdFrom');
-  var toEl = document.getElementById('etdTo');
-  var etbFrom = document.getElementById('etbFrom');
-  var etbTo = document.getElementById('etbTo');
-  if (selectedLanes.size === 0 || selectedLanes.size === LANE_LIST.length) {
-    // All lanes — restore full ETD/ETA range
-    fromEl.min = GLOBAL_ETD_MIN; fromEl.max = GLOBAL_ETD_MAX;
-    toEl.min = GLOBAL_ETD_MIN; toEl.max = GLOBAL_ETD_MAX;
-    if (GLOBAL_ETB_MIN) { etbFrom.min = GLOBAL_ETB_MIN; etbFrom.max = GLOBAL_ETB_MAX; }
-    if (GLOBAL_ETB_MIN) { etbTo.min = GLOBAL_ETB_MIN; etbTo.max = GLOBAL_ETB_MAX; }
-  } else {
-    // Specific lane(s) — narrow to their ETD/ETA range
-    var lanes = Array.from(selectedLanes);
-    var laneMin = '', laneMax = '';
-    var laneEtaMin = '', laneEtaMax = '';
-    lanes.forEach(function(lane) {
-      var m = LANE_ETD_MAP[lane];
-      if (m) {
-        if (!laneMin || m.min < laneMin) laneMin = m.min;
-        if (!laneMax || m.max > laneMax) laneMax = m.max;
-      }
-      var em = LANE_ETB_MAP[lane];
-      if (em) {
-        if (!laneEtaMin || em.min < laneEtaMin) laneEtaMin = em.min;
-        if (!laneEtaMax || em.max > laneEtaMax) laneEtaMax = em.max;
-      }
-    });
-    if (laneMin && laneMax) {
-      fromEl.min = laneMin; fromEl.max = laneMax;
-      toEl.min = laneMin; toEl.max = laneMax;
-    }
-    if (laneEtaMin && laneEtaMax) {
-      etbFrom.min = laneEtaMin; etbFrom.max = laneEtaMax;
-      etbTo.min = laneEtaMin; etbTo.max = laneEtaMax;
-    }
-  }
-  cascadeFilters();
-  refreshAll();
-}
-
-function initETDRange(min, max) {
-  GLOBAL_ETD_MIN = min; GLOBAL_ETD_MAX = max;
-  var fromEl = document.getElementById('etdFrom');
-  var toEl = document.getElementById('etdTo');
-  fromEl.min = min; fromEl.max = max;
-  toEl.min = min; toEl.max = max;
-  fromEl.onchange = function() { cascadeFilters(); refreshAll(); saveFilterState(); };
-  toEl.onchange = function() { cascadeFilters(); refreshAll(); saveFilterState(); };
-}
-
-function initETARange(min, max) {
-  GLOBAL_ETB_MIN = min || ''; GLOBAL_ETB_MAX = max || '';
-  var fromEl = document.getElementById('etbFrom');
-  var toEl = document.getElementById('etbTo');
-  if (min) { fromEl.min = min; fromEl.max = max; }
-  if (min) { toEl.min = min; toEl.max = max; }
-  fromEl.onchange = function() { cascadeFilters(); refreshAll(); saveFilterState(); };
-  toEl.onchange = function() { cascadeFilters(); refreshAll(); saveFilterState(); };
-}
-
-// ============ KPI CARDS ============
-function updateKPIs(data) {
-  var laneSet = new Set(data.map(function(r) { return r.lane; }));
-  document.getElementById('kpiLane').textContent = laneSet.size.toLocaleString();
-  document.getElementById('kpi20').textContent = data.reduce(function(s,r){return s+r.ft20},0).toLocaleString();
-  document.getElementById('kpi40').textContent = data.reduce(function(s,r){return s+r.ft40},0).toLocaleString();
-  var tteu = data.reduce(function(s,r){return s+r.teu},0);
-  document.getElementById('kpiTeu').textContent = tteu.toLocaleString();
-  document.getElementById('kpiBooking').textContent = data.length.toLocaleString();
-  var tw = Math.ceil(data.reduce(function(s,r){return s+r.container_weight},0)/1000*10)/10;
-  document.getElementById('kpiWeight').textContent = tw.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1});
-}
-
-// ============ SUMMARY TABLE ============
-function buildSummary(data) {
-  var groups = {};
-  data.forEach(function(r) {
-    var lk = r.lane || '(blank)';
-    var ck = r.cul_code || '(blank)';
-    var comboKey = r.pol + '|||' + r.del_port;
-    if (!groups[lk]) groups[lk] = {};
-    if (!groups[lk][ck]) groups[lk][ck] = {};
-    if (!groups[lk][ck][comboKey]) {
-      groups[lk][ck][comboKey] = { pol: r.pol, del: r.del_port, eta: r.etb || '', booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
-    }
-    groups[lk][ck][comboKey].booking_sum += r.booking_cnt;
-    groups[lk][ck][comboKey].weight_sum += r.container_weight;
-    groups[lk][ck][comboKey].ft20_sum += r.ft20;
-    groups[lk][ck][comboKey].ft40_sum += r.ft40;
-    groups[lk][ck][comboKey].ft40rf_sum += r.ft40rf;
-  });
-
-  var tbody = '';
-  var totalRows = 0;
-  var lanes = Object.keys(groups).sort();
-  lanes.forEach(function(lane) {
-    var laneBooking = 0, laneWeight = 0, laneFT20 = 0, laneFT40 = 0, laneFT40RF = 0;
-    var culCodes = Object.keys(groups[lane]).sort();
-    culCodes.forEach(function(ck) {
-      var combos = Object.values(groups[lane][ck]);
-      laneBooking += combos.reduce(function(s,v){return s+v.booking_sum},0);
-      laneWeight += combos.reduce(function(s,v){return s+v.weight_sum},0);
-      laneFT20 += combos.reduce(function(s,v){return s+v.ft20_sum},0);
-      laneFT40 += combos.reduce(function(s,v){return s+v.ft40_sum},0);
-      laneFT40RF += combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
-    });
-
-    var laneFEU = laneFT40 + laneFT40RF;
-
-    tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
-    tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + laneBooking.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + (Math.ceil(laneWeight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-    tbody += '<td class="num highlight">' + (laneBooking > 0 ? (Math.ceil((laneWeight/1000)/laneBooking*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) : '0.0') + '</td>';
-
-    tbody += '</tr>';
-
-    culCodes.forEach(function(ck) {
-      var combos = Object.values(groups[lane][ck]).sort(function(a,b){ return a.pol.localeCompare(b.pol); });
-      var culBooking = combos.reduce(function(s,v){return s+v.booking_sum},0);
-      var culWeight = combos.reduce(function(s,v){return s+v.weight_sum},0);
-      var culFT20 = combos.reduce(function(s,v){return s+v.ft20_sum},0);
-      var culFT40 = combos.reduce(function(s,v){return s+v.ft40_sum},0);
-      var culFT40RF = combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
-      var culFEU = culFT40 + culFT40RF;
-
-      tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
-      tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
-      tbody += '<td></td><td></td><td></td>';
-      tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
-      tbody += '<td class="num accent">' + culFEU.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + culBooking.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + (Math.ceil(culWeight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-      tbody += '<td class="num">' + (culBooking > 0 ? (Math.ceil((culWeight/1000)/culBooking*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) : '0.0') + '</td>';
-
-      tbody += '</tr>';
-      totalRows++;
-
-      // Group combos by POL for POL TOTAL row
-      var polGroups = {};
-      combos.forEach(function(c) {
-        if (!polGroups[c.pol]) polGroups[c.pol] = { combos: [], booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
-        polGroups[c.pol].combos.push(c);
-        polGroups[c.pol].booking_sum += c.booking_sum;
-        polGroups[c.pol].weight_sum += c.weight_sum;
-        polGroups[c.pol].ft20_sum += c.ft20_sum;
-        polGroups[c.pol].ft40_sum += c.ft40_sum;
-        polGroups[c.pol].ft40rf_sum += c.ft40rf_sum;
-      });
-
-      Object.keys(polGroups).sort(function(a, b) {
-        var ea = '', eb = '';
-        for (var si = 0; si < polGroups[a].combos.length; si++) { var eta = polGroups[a].combos[si].eta; if (eta && (!ea || eta < ea)) ea = eta; }
-        for (var si = 0; si < polGroups[b].combos.length; si++) { var eta = polGroups[b].combos[si].eta; if (eta && (!eb || eta < eb)) eb = eta; }
-        if (!ea && !eb) return a.localeCompare(b);
-        if (!ea) return 1; if (!eb) return -1;
-        return ea.localeCompare(eb);
-      }).forEach(function(polKey) {
-        var pg = polGroups[polKey];
-        var pgFEU = pg.ft40_sum + pg.ft40rf_sum;
-        // Use ETB from the first combo of this POL
-        var polETB = '';
-        for (var pi = 0; pi < pg.combos.length; pi++) {
-          if (pg.combos[pi].eta) { polETB = pg.combos[pi].eta; break; }
-        }
-        var polId = escapeHtml(lane) + '|||' + escapeHtml(polKey);
-        tbody += '<tr class="detail-row hidden pol-total" data-parent="' + escapeHtml(lane) + '" data-pol="' + polId + '" onclick="togglePolTotal(this)">';
-        tbody += '<td></td><td></td>';
-        tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(polKey) + ' TOTAL</b></td>';
-        tbody += '<td></td><td>' + (polETB || '-') + '</td>';
-        tbody += '<td class="num">' + pg.ft20_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + pg.ft40_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + pg.ft40rf_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num accent">' + pgFEU.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + pg.booking_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + (Math.ceil(pg.weight_sum/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-        var pgAvg = pg.booking_sum > 0 ? Math.ceil((pg.weight_sum/1000) / pg.booking_sum * 10) / 10 : 0;
-        tbody += '<td class="num">' + pgAvg.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-        tbody += '</tr>';
-        totalRows++;
-
-        pg.combos.forEach(function(c) {
-          var cFEU = c.ft40_sum + c.ft40rf_sum;
-          tbody += '<tr class="detail-row hidden pol-del" data-parent="' + escapeHtml(lane) + '" data-pol="' + polId + '">';
-          tbody += '<td></td><td></td>';
-          tbody += '<td>' + escapeHtml(c.pol) + '</td>';
-          tbody += '<td>' + escapeHtml(c.del) + '</td>';
-          tbody += '<td></td>';  // ETB shown on POL TOTAL row only
-          tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + (Math.ceil(c.weight_sum/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-          var avg = c.booking_sum > 0 ? Math.ceil((c.weight_sum/1000) / c.booking_sum * 10) / 10 : 0;
-          tbody += '<td class="num">' + avg.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-          tbody += '</tr>';
-          totalRows++;
-        });
-      });
-    });
-  });
-
-  if (totalRows === 0) {
-    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
-  } else {
-    document.getElementById('summaryTable').querySelector('tbody').innerHTML = tbody;
-  }
-  document.getElementById('summaryCount').textContent = totalRows + ' groups';
-}
-
-function toggleLane(row) {
-  row.classList.toggle('expanded');
-  row.classList.toggle('collapsed', !row.classList.contains('expanded'));
-  var lane = row.dataset.lane;
-  var visible = row.classList.contains('expanded');
-  // Show CUL + POL TOTAL rows; keep DEL rows hidden by default
-  document.querySelectorAll('[data-parent="' + lane + '"]:not(.pol-del)').forEach(function(r) {
-    r.classList.toggle('hidden', !visible);
-  });
-  // When collapsing, also hide DEL rows and reset POL expanded state
-  if (!visible) {
-    document.querySelectorAll('[data-pol]').forEach(function(r) { r.classList.remove('expanded'); });
-  }
-}
-
-function togglePolTotal(row) {
-  row.classList.toggle('expanded');
-  var polId = row.dataset.pol;
-  var visible = row.classList.contains('expanded');
-  document.querySelectorAll('[data-pol="' + polId + '"].pol-del').forEach(function(r) {
-    r.classList.toggle('hidden', !visible);
-  });
-}
-
-// ============ CHARTS ============
-var chartPolInst, chartDelInst, chartDelVolInst;
-function updateCharts(data) {
-  // TEU by POL
-  var polMap = {};
-  data.forEach(function(r) {
-    var k = r.pol || '(blank)';
-    polMap[k] = (polMap[k] || 0) + r.teu;
-  });
-  var polEntries = Object.entries(polMap).sort(function(a,b){return b[1]-a[1]}).slice(0,15);
-
-  var ctxPol = document.getElementById('chartPol').getContext('2d');
-  if (chartPolInst) chartPolInst.destroy();
-  chartPolInst = new Chart(ctxPol, {
-    type: 'bar', data: { labels: polEntries.map(function(e){return e[0]}), datasets: [{ label: 'TEU', data: polEntries.map(function(e){return e[1]}), backgroundColor: '#0f3460', borderRadius: 4 }] },
-    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } } } } }
-  });
-
-  // TEU by DEL
-  var delMap = {};
-  data.forEach(function(r) {
-    var k = r.del_port || '(blank)';
-    delMap[k] = (delMap[k] || 0) + r.teu;
-  });
-  var delEntries = Object.entries(delMap).sort(function(a,b){return b[1]-a[1]}).slice(0,15);
-
-  var ctxDel = document.getElementById('chartDel').getContext('2d');
-  if (chartDelInst) chartDelInst.destroy();
-  chartDelInst = new Chart(ctxDel, {
-    type: 'bar', data: { labels: delEntries.map(function(e){return e[0]}), datasets: [{ label: 'TEU', data: delEntries.map(function(e){return e[1]}), backgroundColor: '#e74c3c', borderRadius: 4 }] },
-    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } } } } }
-  });
-
-  // DEL Volume (Container Weight) by DEL
-  var delVolMap = {};
-  data.forEach(function(r) {
-    var k = r.del_port || '(blank)';
-    delVolMap[k] = (delVolMap[k] || 0) + r.container_weight;
-  });
-  var delVolEntries = Object.entries(delVolMap).sort(function(a,b){return b[1]-a[1]}).slice(0,15);
-
-  var ctxDelVol = document.getElementById('chartDelVol').getContext('2d');
-  if (chartDelVolInst) chartDelVolInst.destroy();
-  chartDelVolInst = new Chart(ctxDelVol, {
-    type: 'bar', data: { labels: delVolEntries.map(function(e){return e[0]}), datasets: [{ label: 'Weight', data: delVolEntries.map(function(e){return e[1]}), backgroundColor: '#27ae60', borderRadius: 4 }] },
-    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } } } } }
-  });
-}
-
-// ============ DETAIL TABLE ============
-function updateDetail(data) {
-  var searchTxt = (document.getElementById('detailSearch').value || '').toLowerCase();
-  var filtered = data;
-  if (searchTxt) {
-    filtered = data.filter(function(r) {
-      return (r.bl_no || '').toLowerCase().indexOf(searchTxt) !== -1
-          || (r.shipper || '').toLowerCase().indexOf(searchTxt) !== -1
-          || (r.forwarder || '').toLowerCase().indexOf(searchTxt) !== -1
-          || (r.contract_no || '').toLowerCase().indexOf(searchTxt) !== -1
-          || (r.vvd || '').toLowerCase().indexOf(searchTxt) !== -1
-          || (r.lane || '').toLowerCase().indexOf(searchTxt) !== -1;
-    });
-  }
-  var rows = filtered.slice(0, 500).map(function(r) {
-    return '<tr>' +
-      '<td>' + escapeHtml(r.bl_no) + '</td>' +
-      '<td>' + escapeHtml(r.cul_code) + '</td>' +
-      '<td>' + escapeHtml(r.vvd) + '</td>' +
-      '<td>' + escapeHtml(r.lane) + '</td>' +
-      '<td>' + escapeHtml(r.por) + '</td>' +
-      '<td><b>' + escapeHtml(r.pol) + '</b></td>' +
-      '<td>' + escapeHtml(r.etd) + '</td>' +
-      '<td>' + escapeHtml(r.pod) + '</td>' +
-      '<td><b>' + escapeHtml(r.del_port) + '</b></td>' +
-      '<td class="num">' + r.ft20 + '</td>' +
-      '<td class="num">' + r.ft40 + '</td>' +
-      '<td class="num"><b>' + r.teu + '</b></td>' +
-      '<td class="num">' + r.booking_cnt + '</td>' +
-      '<td class="num">' + (Math.ceil(r.container_weight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>' +
-      '<td>' + escapeHtml(r.shipper) + '</td>' +
-      '<td>' + escapeHtml(r.forwarder) + '</td>' +
-      '</tr>';
-  }).join('');
-  document.getElementById('detailTable').querySelector('tbody').innerHTML = rows || '<tr><td colspan="16" style="text-align:center;padding:20px">No matching records</td></tr>';
-  document.getElementById('detailCount').textContent = 'Showing ' + Math.min(filtered.length, 500) + ' of ' + filtered.length + ' records';
-}
-
-// ============ CUSTOM NOTES ============
-function getNotes() {
-  try { return JSON.parse(localStorage.getItem('db_notes') || '{}'); } catch(e) { return {}; }
-}
-function saveNotes(notes) {
-  localStorage.setItem('db_notes', JSON.stringify(notes));
-}
-function renderNotes() {
-  var notes = getNotes();
-  var selectedLanes = Array.from(msLane ? msLane.getSelected() : []);
-  var grid = document.getElementById('notesGrid');
-  var html = '';
-  selectedLanes.forEach(function(lane) {
-    var note = notes[lane] || '';
-    html += '<div class="note-card">' +
-      '<div class="note-vvd">' + escapeHtml(lane) + '</div>' +
-      '<textarea data-lane="' + escapeHtml(lane) + '" placeholder="Add your notes here...">' + escapeHtml(note) + '</textarea>' +
-      (note ? '<div class="note-save">✓ Saved</div>' : '') +
-      '</div>';
-  });
-  if (!html) html = '<div style="color:#999;font-size:13px;padding:8px">Select Lane(s) above to add notes.</div>';
-  grid.innerHTML = html;
-
-  // Auto-save on blur
-  grid.querySelectorAll('textarea').forEach(function(ta) {
-    ta.onblur = function() {
-      var lane = ta.dataset.lane;
-      var notes = getNotes();
-      notes[lane] = ta.value;
-      saveNotes(notes);
-      ta.nextElementSibling && ta.nextElementSibling.remove();
-      if (ta.value) {
-        var s = document.createElement('div'); s.className = 'note-save'; s.textContent = '✓ Saved';
-        ta.parentNode.appendChild(s);
-      }
-    };
-  });
-}
-
-function addNoteForSelected() {
-  var selected = Array.from(msLane.getSelected());
-  if (selected.length === 0) { alert('Please select at least one Lane first.'); return; }
-  var lane = selected[0];
-  var notes = getNotes();
-  notes[lane] = notes[lane] || '';
-  saveNotes(notes);
-  renderNotes();
-}
-
-// ============ FILTER PERSISTENCE (localStorage) ============
-function saveFilterState() {
-  try {
-    var state = {
-      lane: Array.from(msLane.getSelected()),
-      pol: Array.from(msPol.getSelected()),
-      del: Array.from(msDel.getSelected()),
-      cul: Array.from(msCul.getSelected()),
-      dir: Array.from(msDir.getSelected()),
-      etdFrom: document.getElementById('etdFrom').value,
-      etdTo: document.getElementById('etdTo').value,
-      etbFrom: document.getElementById('etbFrom').value,
-      etbTo: document.getElementById('etbTo').value,
-      sul: sulFilter,
-      detailSearch: document.getElementById('detailSearch').value
-    };
-    localStorage.setItem('db_filter_state', JSON.stringify(state));
-  } catch(e) { console.warn('Failed to save filter state:', e); }
-}
-
-function restoreFilterState() {
-  try {
-    var raw = localStorage.getItem('db_filter_state');
-    if (!raw) return false;
-    var state = JSON.parse(raw);
-    console.log('[RESTORE] Saved state:', JSON.stringify(state).substring(0, 200));
-
-    // Suppress ALL callbacks during restore
-    window._isRestoring = true;
-    msLane._suppress(true); msCul._suppress(true); msDir._suppress(true); msPol._suppress(true); msDel._suppress(true);
-
-    // Step 1: Restore Lane
-    if (state.lane && state.lane.length && state.lane.length < LANE_LIST.length) {
-      msLane.setSelected(state.lane);
-      console.log('[RESTORE] Lane set to:', state.lane);
-    }
-
-    // Step 2: Restore ETD & ETA
-    if (state.etdFrom) document.getElementById('etdFrom').value = state.etdFrom;
-    if (state.etdTo) document.getElementById('etdTo').value = state.etdTo;
-    if (state.etbFrom) document.getElementById('etbFrom').value = state.etbFrom;
-    if (state.etbTo) document.getElementById('etbTo').value = state.etbTo;
-
-    // Restore SUL_YN filter
-    if (state.sul && state.sul !== 'ALL') {
-      sulFilter = state.sul;
-      document.querySelectorAll("#sulSeg button").forEach(function(b){
-        b.classList.toggle("active", b.dataset.sul === state.sul);
-      });
-    }
-
-    // Step 3: Manually set saved CUL/POL/DEL/DIR selections BEFORE cascade
-    if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
-      msCul.setSelected(state.cul);
-      console.log('[RESTORE] CUL set to:', state.cul.slice(0,5), '... total:', state.cul.length);
-    }
-    if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) {
-      msPol.setSelected(state.pol);
-      console.log('[RESTORE] POL set to:', state.pol);
-    }
-    if (state.del && state.del.length && state.del.length < DEL_LIST.length) {
-      msDel.setSelected(state.del);
-      console.log('[RESTORE] DEL set to:', state.del);
-    }
-    if (state.dir && state.dir.length && state.dir.length < DIR_LIST.length) {
-      msDir.setSelected(state.dir);
-      console.log('[RESTORE] DIR set to:', state.dir);
-    }
-
-    // Step 4: Cascade updates pools - updateItems will KEEP valid selections
-    console.log('[RESTORE] Before cascade - POL selected:', Array.from(msPol.getSelected()).slice(0,5), 'DEL selected:', Array.from(msDel.getSelected()).slice(0,5));
-    onLaneChange(msLane.getSelected());
-    console.log('[RESTORE] After cascade - POL selected:', Array.from(msPol.getSelected()).slice(0,5), 'DEL selected:', Array.from(msDel.getSelected()).slice(0,5));
-
-    // Step 5: Re-apply saved selections after cascade (in case updateItems defaulted to all)
-    if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) {
-      var polValid = state.pol.filter(function(v){ return msPol.getItems().indexOf(v) >= 0; });
-      if (polValid.length > 0) { msPol.setSelected(polValid); }
-      console.log('[RESTORE] POL re-applied:', polValid.length, 'valid of', state.pol.length);
-    }
-    if (state.del && state.del.length && state.del.length < DEL_LIST.length) {
-      var delValid = state.del.filter(function(v){ return msDel.getItems().indexOf(v) >= 0; });
-      if (delValid.length > 0) { msDel.setSelected(delValid); }
-      console.log('[RESTORE] DEL re-applied:', delValid.length, 'valid of', state.del.length);
-    }
-    if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
-      var culValid = state.cul.filter(function(v){ return msCul.getItems().indexOf(v) >= 0; });
-      if (culValid.length > 0) { msCul.setSelected(culValid); }
-    }
-
-    // Step 6: Restore detail search
-    if (state.detailSearch) document.getElementById('detailSearch').value = state.detailSearch;
-
-    // Re-enable callbacks
-    msLane._suppress(false); msCul._suppress(false); msDir._suppress(false); msPol._suppress(false); msDel._suppress(false);
-    window._isRestoring = false;
-
-    refreshAll();
-    return true;
-  } catch(e) { console.warn('Failed to restore filter state:', e); return false; }
-}
-
-// ============ MAIN REFRESH ============
-function refreshAll() {
-  var data = getFilteredData();
-  updateKPIs(data);
-  buildSummary(data);
-  updateCharts(data);
-  updateDetail(data);
-  renderNotes();
-}
-
-// ============ SETUP ============
-function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-document.getElementById('detailSearch').oninput = function() { updateDetail(getFilteredData()); saveFilterState(); };
-document.getElementById('resetAll').onclick = function() {
-  msLane.setAll();
-  msCul.setAll();
-  msPol.setAll();
-  msDel.setAll();
-  msDir.setAll();
-  var fromEl = document.getElementById('etdFrom');
-  var toEl = document.getElementById('etdTo');
-  fromEl.value = ''; toEl.value = '';
-  fromEl.min = GLOBAL_ETD_MIN; fromEl.max = GLOBAL_ETD_MAX;
-  toEl.min = GLOBAL_ETD_MIN; toEl.max = GLOBAL_ETD_MAX;
-  var etbFrom = document.getElementById('etbFrom');
-  var etbTo = document.getElementById('etbTo');
-  etbFrom.value = ''; etbTo.value = '';
-  if (GLOBAL_ETB_MIN) { etbFrom.min = GLOBAL_ETB_MIN; etbFrom.max = GLOBAL_ETB_MAX; }
-  if (GLOBAL_ETB_MIN) { etbTo.min = GLOBAL_ETB_MIN; etbTo.max = GLOBAL_ETB_MAX; }
-  // Reset SUL_YN to ALL
-  sulFilter = "ALL";
-  document.querySelectorAll("#sulSeg button").forEach(function(b){
-    b.classList.toggle("active", b.dataset.sul === "ALL");
-  });
-  refreshAll();
-  saveFilterState();
-};
-document.getElementById('btnAddNote').onclick = addNoteForSelected;
-document.getElementById('btnClearNotes').onclick = function() {
-  if (confirm('Clear all saved notes?')) { localStorage.removeItem('db_notes'); renderNotes(); }
-};
-// Note: initFilters() and refreshAll() are called inside loadData() after fetch completes
-</script>
-</body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Daily Booking Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#1a1a2e}
+.header{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:20px;font-weight:600}
+.header .updated{font-size:12px;opacity:.7}
+.container{max-width:1400px;margin:0 auto;padding:16px 20px}
+
+/* Filters Bar */
+.filters-bar{background:#fff;border-radius:10px;padding:14px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.filter-group{display:flex;align-items:center;gap:6px}
+.filter-group label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+
+/* Multi-Select Dropdown */
+.multi-select{position:relative;min-width:200px}
+.multi-select .ms-trigger{display:flex;align-items:center;justify-content:space-between;background:#f5f6fa;border:1px solid #ddd;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;min-width:160px;user-select:none;transition:border-color .2s}
+.multi-select .ms-trigger:hover{border-color:#0f3460}
+.multi-select.active .ms-trigger{border-color:#0f3460;box-shadow:0 0 0 2px rgba(15,52,96,.15)}
+.ms-trigger .ms-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.ms-trigger .ms-arrow{font-size:10px;margin-left:6px;transition:transform .2s;color:#888}
+.multi-select.active .ms-arrow{transform:rotate(180deg)}
+.ms-dropdown{display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:1000;min-width:280px;max-height:380px;overflow:hidden}
+.multi-select.active .ms-dropdown{display:block}
+.ms-search{width:100%;border:none;border-bottom:1px solid #eee;padding:10px 12px;font-size:13px;outline:none}
+.ms-actions{display:flex;gap:8px;padding:8px 12px;border-bottom:1px solid #eee}
+.ms-actions button{flex:1;padding:4px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;transition:.15s}
+.ms-actions button:hover{background:#0f3460;color:#fff;border-color:#0f3460}
+.ms-list{max-height:260px;overflow-y:auto;padding:4px 0}
+.ms-list label{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:13px;cursor:pointer;transition:background .1s}
+.ms-list label:hover{background:#f0f4ff}
+.ms-list input[type=checkbox]{accent-color:#0f3460}
+.ms-badge{display:inline-block;background:#0f3460;color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;margin-left:4px}
+.ms-count{font-size:11px;color:#999;margin-left:auto}
+.filter-clear{font-size:11px;color:#e74c3c;cursor:pointer;text-decoration:underline;white-space:nowrap}
+.filter-clear:hover{color:#c0392b}
+
+/* ETD/ETB Date Range Filter */
+.etd-filter,.etb-filter{display:flex;align-items:center;gap:6px;background:#f5f6fa;border:1px solid #ddd;border-radius:6px;padding:6px 10px}
+.etd-filter label,.etb-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+.etd-filter input[type=date],.etb-filter input[type=date]{border:1px solid #ddd;border-radius:4px;padding:4px 8px;font-size:13px;outline:none;background:#fff;cursor:pointer}
+.etd-filter input[type=date]:focus,.etb-filter input[type=date]:focus{border-color:#0f3460}
+.etd-filter .etd-sep,.etb-filter .etd-sep{color:#999;font-size:13px}
+
+/* SUL_YN Segmented Filter */
+.sul-filter{display:flex;align-items:center;gap:6px}
+.sul-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+.sul-seg{display:flex;border-radius:6px;overflow:hidden;border:1px solid #ddd}
+.sul-seg button{padding:5px 14px;font-size:12px;font-weight:600;border:none;background:#f5f6fa;color:#666;cursor:pointer;transition:.15s;border-right:1px solid #ddd}
+.sul-seg button:last-child{border-right:none}
+.sul-seg button.active{background:#0f3460;color:#fff}
+.sul-seg button:hover:not(.active){background:#e8f0fe}
+
+/* KPI Cards */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:14px}
+.kpi-card{background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.08);text-align:center}
+.kpi-card .kpi-value{font-size:28px;font-weight:700;color:#0f3460;line-height:1.2}
+.kpi-card .kpi-label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+.kpi-card.accent .kpi-value{color:#e74c3c}
+
+/* Charts */
+.chart-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+.chart-box{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.chart-box h3{font-size:14px;font-weight:600;color:#1a1a2e;margin-bottom:12px}
+.chart-box canvas{max-height:320px}
+
+/* Summary Table */
+.summary-section{background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.summary-section h2{font-size:15px;font-weight:600;color:#1a1a2e;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.summary-section h2 .badge{font-size:11px;font-weight:400;background:#e8f0fe;color:#0f3460;padding:2px 8px;border-radius:10px}
+.summary-table{width:100%;border-collapse:collapse;font-size:13px}
+.summary-table th{background:#f5f6fa;padding:8px 10px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;color:#666;border-bottom:2px solid #e0e0e0;white-space:nowrap}
+.summary-table td{padding:8px 10px;border-bottom:1px solid #eee}
+.summary-table .lane-row{background:#f0f4ff;font-weight:700;cursor:pointer}
+.summary-table .lane-row td{font-size:13px;color:#0f3460}
+.summary-table .lane-row .expand-icon{display:inline-block;width:16px;text-align:center;transition:transform .2s}
+.summary-table .lane-row.expanded .expand-icon{transform:rotate(90deg)}
+.summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
+.summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
+.summary-table tr.detail-row.hidden{display:none}
+.summary-table tr.detail-row.pol-total td{background:#e8f0fe;font-weight:700;color:#0f3460;border-bottom:2px solid #c5d5f0;cursor:pointer}
+.summary-table tr.detail-row.pol-total td.num{color:#0f3460;font-weight:700}
+.summary-table tr.detail-row.pol-total td.nest{color:#0f3460;font-weight:700}
+.summary-table .pol-total .expand-icon{display:inline-block;width:14px;text-align:center;transition:transform .2s;font-size:11px}
+.summary-table .pol-total.expanded .expand-icon{transform:rotate(90deg)}
+.summary-table tr.detail-row.pol-del.hidden{display:none}
+.summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
+.summary-table .highlight{color:#0f3460;font-weight:600}
+
+/* Detail Table */
+.detail-section{background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.detail-section h2{font-size:15px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.detail-search{width:240px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;outline:none}
+.detail-search:focus{border-color:#0f3460}
+.detail-table-wrap{max-height:500px;overflow:auto}
+.detail-table{width:100%;border-collapse:collapse;font-size:12px}
+.detail-table th{position:sticky;top:0;background:#f5f6fa;padding:8px 8px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;color:#666;z-index:1}
+.detail-table td{padding:7px 8px;border-bottom:1px solid #f0f0f0;white-space:nowrap}
+.detail-table tr:hover{background:#f8faff}
+.detail-info{font-size:12px;color:#999;margin-top:8px}
+
+/* Notes Panel */
+.notes-section{background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.notes-section h2{font-size:15px;font-weight:600;margin-bottom:12px}
+.notes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.note-card{background:#fafbfc;border:1px solid #eee;border-radius:8px;padding:10px 12px}
+.note-card .note-vvd{font-size:12px;font-weight:600;color:#0f3460;margin-bottom:6px}
+.note-card textarea{width:100%;border:1px solid #e0e0e0;border-radius:4px;padding:8px;font-size:12px;resize:vertical;min-height:50px;font-family:inherit;outline:none}
+.note-card textarea:focus{border-color:#0f3460}
+.note-card .note-save{font-size:10px;color:#27ae60;margin-top:4px}
+.note-actions{display:flex;gap:8px;margin-bottom:10px}
+.note-actions button{padding:4px 12px;font-size:12px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer}
+.note-actions button:hover{background:#0f3460;color:#fff;border-color:#0f3460}
+.note-actions button.primary{background:#0f3460;color:#fff;border-color:#0f3460}
+
+@media(max-width:1100px){.chart-row{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}.filters-bar{flex-direction:column;align-items:stretch}}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📊 Daily Booking Dashboard</h1>
+  <span class="updated" id="headerUpdated">Loading...</span>
+</div>
+
+<div id="loadingArea" style="padding:80px 20px;text-align:center;color:#888;font-size:16px">
+  <div style="margin-bottom:12px">⏳ Loading dashboard data...</div>
+  <div style="font-size:13px;color:#bbb">Fetching db_data.json.gz</div>
+</div>
+<div id="errorMsg" style="display:none;padding:60px 20px;text-align:center;color:#e74c3c;font-size:16px"></div>
+
+<div id="dashboardContent" style="display:none">
+<div class="container">
+  <!-- FILTERS -->
+  <div class="filters-bar">
+    <div class="filter-group">
+      <label>Trunk Lane</label>
+      <div class="multi-select" id="msLane" style="min-width:180px">
+        <div class="ms-trigger" id="msLaneTrigger"><span class="ms-text">All Lanes</span><span class="ms-arrow">▼</span></div>
+        <div class="ms-dropdown" id="msLaneDropdown">
+          <input class="ms-search" id="msLaneSearch" placeholder="Search Lane...">
+          <div class="ms-actions">
+            <button id="msLaneAll">Select All</button>
+            <button id="msLaneNone">Clear All</button>
+          </div>
+          <div class="ms-list" id="msLaneList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>CUL Code</label>
+      <div class="multi-select" id="msCul">
+        <div class="ms-trigger" id="msCulTrigger"><span class="ms-text">All CULs</span><span class="ms-arrow">▼</span></div>
+        <div class="ms-dropdown" id="msCulDropdown">
+          <input class="ms-search" id="msCulSearch" placeholder="Search CUL Code...">
+          <div class="ms-actions">
+            <button id="msCulAll">Select All</button>
+            <button id="msCulNone">Clear All</button>
+          </div>
+          <div class="ms-list" id="msCulList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>Direction</label>
+      <div class="multi-select" id="msDir" style="min-width:140px">
+        <div class="ms-trigger" id="msDirTrigger"><span class="ms-text">All Directions</span><span class="ms-arrow">▼</span></div>
+        <div class="ms-dropdown" id="msDirDropdown">
+          <div class="ms-actions">
+            <button id="msDirAll">Select All</button>
+            <button id="msDirNone">Clear All</button>
+          </div>
+          <div class="ms-list" id="msDirList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>POL</label>
+      <div class="multi-select" id="msPol">
+        <div class="ms-trigger" id="msPolTrigger"><span class="ms-text">All POLs</span><span class="ms-arrow">▼</span></div>
+        <div class="ms-dropdown" id="msPolDropdown">
+          <input class="ms-search" id="msPolSearch" placeholder="Search POL...">
+          <div class="ms-actions">
+            <button id="msPolAll">Select All</button>
+            <button id="msPolNone">Clear All</button>
+          </div>
+          <div class="ms-list" id="msPolList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>DEL</label>
+      <div class="multi-select" id="msDel">
+        <div class="ms-trigger" id="msDelTrigger"><span class="ms-text">All DELs</span><span class="ms-arrow">▼</span></div>
+        <div class="ms-dropdown" id="msDelDropdown">
+          <input class="ms-search" id="msDelSearch" placeholder="Search DEL...">
+          <div class="ms-actions">
+            <button id="msDelAll">Select All</button>
+            <button id="msDelNone">Clear All</button>
+          </div>
+          <div class="ms-list" id="msDelList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="etd-filter">
+      <label>ETD</label>
+      <input type="date" id="etdFrom" title="ETD From">
+      <span class="etd-sep">~</span>
+      <input type="date" id="etdTo" title="ETD To">
+    </div>
+    <div class="etd-filter">
+      <label>POL ETB</label>
+      <input type="date" id="etbFrom" title="POL ETB From">
+      <span class="etd-sep">~</span>
+      <input type="date" id="etbTo" title="POL ETB To">
+    </div>
+    <div class="sul-filter">
+      <label>SUL_YN</label>
+      <div class="sul-seg" id="sulSeg">
+        <button data-sul="ALL" class="active">ALL</button>
+        <button data-sul="SUL">SUL</button>
+        <button data-sul="CUL">CUL</button>
+      </div>
+    </div>
+    <span class="filter-clear" id="resetAll">Reset All</span>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-value" id="kpiLane">0</div><div class="kpi-label">Lanes</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi20">0</div><div class="kpi-label">20ft</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi40">0</div><div class="kpi-label">40ft</div></div>
+    <div class="kpi-card accent"><div class="kpi-value" id="kpiTeu">0</div><div class="kpi-label">Total TEU</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpiBooking">0</div><div class="kpi-label">Booking Count</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpiWeight">0</div><div class="kpi-label">Container Weight</div></div>
+  </div>
+  <!-- SUMMARY TABLE -->
+  <div class="summary-section">
+    <h2>📋 Summary by Trunk Lane & CUL Code <span class="badge" id="summaryCount"></span></h2>
+    <div style="overflow-x:auto">
+      <table class="summary-table" id="summaryTable"><thead>
+        <tr>
+          <th style="min-width:80px">TRUNK LANE</th>
+          <th style="min-width:110px">CUL CODE</th>
+          <th style="min-width:80px">POL</th>
+          <th style="min-width:80px">DEL</th>
+          <th style="min-width:80px">ETB</th>
+          <th class="num" style="min-width:60px">20ft</th>
+          <th class="num" style="min-width:60px">40ft</th>
+          <th class="num" style="min-width:60px">40RF</th>
+          <th class="num accent" style="min-width:60px">FEU</th>
+          <th class="num">Sum of Booking</th>
+          <th class="num">Sum of Container Weight</th>
+          <th class="num">Avg Weight</th>
+        </tr>
+      </thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="chart-row">
+    <div class="chart-box"><h3>TEU by POL</h3><canvas id="chartPol"></canvas></div>
+    <div class="chart-box"><h3>TEU by DEL</h3><canvas id="chartDel"></canvas></div>
+    <div class="chart-box"><h3>Volume by DEL (Weight)</h3><canvas id="chartDelVol"></canvas></div>
+  </div>
+
+  <!-- DETAIL TABLE -->
+  <div class="detail-section">
+    <h2>📄 Detail Data <input class="detail-search" id="detailSearch" placeholder="Search BL / Shipper / Forwarder..."></h2>
+    <div class="detail-table-wrap">
+      <table class="detail-table" id="detailTable"><thead><tr>
+        <th>BL No.</th><th>CUL Code</th><th>Trunk VVD</th><th>Lane</th><th>POR</th><th>POL</th><th>ETD</th><th>POD</th><th>DEL</th><th>20ft</th><th>40ft</th><th>TEU</th><th>Booking</th><th>Weight</th><th>Shipper</th><th>Forwarder</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+    <div class="detail-info" id="detailCount"></div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="notes-section">
+    <h2>✏️ Custom Notes <span style="font-weight:400;font-size:12px;color:#999">— saved automatically per Lane</span></h2>
+    <div class="note-actions">
+      <button class="primary" id="btnAddNote">+ Add Note for Selected Lane</button>
+      <button id="btnClearNotes">Clear All Notes</button>
+    </div>
+    <div class="notes-grid" id="notesGrid"></div>
+  </div>
+</div>
+</div>
+
+<script>
+Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+Chart.defaults.font.size = 11;
+
+var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST, DIR_LIST;
+var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP, LANE_ETD_MAP, LANE_ETB_MAP;
+var GLOBAL_ETD_MIN, GLOBAL_ETD_MAX;
+var GLOBAL_ETB_MIN, GLOBAL_ETB_MAX;
+var msLane, msPol, msDel, msCul, msDir;
+
+// ============ DATA LOADING ============
+(function loadData() {
+  var loadingEl = document.getElementById('loadingArea');
+  var contentEl = document.getElementById('dashboardContent');
+  var errorMsg = document.getElementById('errorMsg');
+  var loadStart = Date.now();
+
+  function showError(msg, detail) {
+    loadingEl.style.display = 'none';
+    errorMsg.style.display = 'block';
+    errorMsg.innerHTML = '<b>Failed to load data</b><br>' + msg +
+      (detail ? '<br><span style="font-size:12px;color:#999">' + detail + '</span>' : '');
+  }
+
+  // Abort after 60 seconds (decompression can take time)
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() {
+    controller.abort();
+  }, 60000);
+
+  fetch('db_data.json.gz?ts=' + Date.now(), {signal: controller.signal, cache: 'no-store'})
+    .then(function(r) {
+      clearTimeout(timeoutId);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      // Decompress gzip stream client-side
+      return r.body.pipeThrough(new DecompressionStream('gzip'));
+    })
+    .then(function(decompressedStream) {
+      return new Response(decompressedStream).text();
+    })
+    .then(function(text) {
+      return JSON.parse(text);
+    })
+    .then(function(payload) {
+      ALL_DATA = payload.data;
+      LANE_LIST = payload.lane_list;
+      POL_LIST = payload.pol_list;
+      DEL_LIST = payload.del_list;
+      CUL_LIST = payload.cul_list;
+      DIR_LIST = payload.dir_list || ['E','N','S','W'];
+      LANE_CUL_MAP = payload.lane_cul_map || {};
+      LANE_POL_MAP = payload.lane_pol_map || {};
+      LANE_DEL_MAP = payload.lane_del_map || {};
+      LANE_ETD_MAP = payload.lane_etd_map || {};
+      LANE_ETB_MAP = payload.lane_etb_map || {};
+
+      loadingEl.style.display = 'none';
+      contentEl.style.display = 'block';
+      document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
+
+      initFilters();
+      initETDRange(payload.etd_min, payload.etd_max);
+      initETARange(payload.etb_min, payload.etb_max);
+      restoreFilterState();
+      refreshAll(); // always render, even if restore failed
+    })
+    .catch(function(err) {
+      clearTimeout(timeoutId);
+      loadingEl.style.display = 'none';
+      var elapsed = ((Date.now() - loadStart) / 1000).toFixed(1);
+      if (err.name === 'AbortError') {
+        showError('Request timed out after 30 seconds.', 'The data file (~27MB) may be too large for your current network. Try refreshing or check your connection.');
+      } else {
+        showError(err.message, 'Time elapsed: ' + elapsed + 's | Please check browser console (F12) for details.');
+      }
+      console.error('Data load error:', err);
+    });
+})();
+
+// SUL_YN FILTER
+var sulFilter = "ALL";
+function setSulFilter(val, btn) {
+  sulFilter = val;
+  document.querySelectorAll("#sulSeg button").forEach(function(b){b.classList.remove("active")});
+  btn.classList.add("active"); refreshAll(); saveFilterState();
+}
+document.querySelectorAll("#sulSeg button").forEach(function(b){
+  b.onclick = function(){ setSulFilter(this.dataset.sul, this); };
+});
+
+// ============ MULTI-SELECT ENGINE ============
+function buildMultiSelect(id, items, onChange, label) {
+  label = label || id;
+  var root = document.getElementById('ms' + id);
+  var trigger = document.getElementById('ms' + id + 'Trigger');
+  var dropdown = document.getElementById('ms' + id + 'Dropdown');
+  var search = document.getElementById('ms' + id + 'Search');
+  var list = document.getElementById('ms' + id + 'List');
+  var btnAll = document.getElementById('ms' + id + 'All');
+  var btnNone = document.getElementById('ms' + id + 'None');
+
+  var selected = new Set(items);
+  var currentItems = items;
+  var _suppressed = false;  // batch-restore guard
+
+  function updateTrigger() {
+    var count = selected.size, total = currentItems.length;
+    var txt;
+    if (total === 0) txt = '0 available';
+    else if (count === total) txt = 'All ' + label + 's';
+    else txt = count + ' ' + label + ' selected';
+    trigger.querySelector('.ms-text').textContent = txt;
+    if (trigger.querySelector('.ms-badge')) trigger.querySelector('.ms-badge').remove();
+    if (count > 0 && count < total) {
+      var badge = document.createElement('span'); badge.className = 'ms-badge'; badge.textContent = count;
+      trigger.appendChild(badge);
+    }
+  }
+
+  function renderList(filter) {
+    list.innerHTML = '';
+    var filt = (filter || '').toLowerCase();
+    currentItems.forEach(function(item) {
+      if (filt && item.toLowerCase().indexOf(filt) === -1) return;
+      var label = document.createElement('label');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = selected.has(item);
+      cb.onchange = function() {
+        if (cb.checked) selected.add(item); else selected.delete(item);
+        updateTrigger(); if (!_suppressed) onChange(selected);
+      };
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(item));
+      list.appendChild(label);
+    });
+  }
+
+  function toggle() {
+    root.classList.toggle('active');
+    if (root.classList.contains('active')) {
+      if (search) { search.value = ''; search.focus(); }
+      renderList('');
+    }
+  }
+
+  trigger.onclick = function(e) { e.stopPropagation(); toggle(); };
+  if (search) { search.oninput = function() { renderList(search.value); }; }
+  btnAll.onclick = function(e) { e.stopPropagation(); selected = new Set(currentItems); updateTrigger(); renderList(search ? search.value : ''); if (!_suppressed) onChange(selected); };
+  btnNone.onclick = function(e) { e.stopPropagation(); selected = new Set(); updateTrigger(); renderList(search ? search.value : ''); if (!_suppressed) onChange(selected); };
+
+  document.addEventListener('click', function(e) {
+    if (!root.contains(e.target)) root.classList.remove('active');
+  });
+
+  updateTrigger(); renderList('');
+  return {
+    getSelected: function() { return selected; },
+    getItems: function() { return currentItems; },
+    _suppress: function(s) { _suppressed = s; },
+    setAll: function() { selected = new Set(currentItems); updateTrigger(); renderList(''); },
+    clear: function() { selected = new Set(); updateTrigger(); renderList(''); },
+    setSelected: function(items) {
+      var validSet = new Set(currentItems);
+      selected = new Set(Array.isArray(items) ? items.filter(function(x){return validSet.has(x)}) : []);
+      if (selected.size === 0 && currentItems.length > 0) selected = new Set(currentItems);
+      updateTrigger(); renderList('');
+    },
+    updateItems: function(newItems) {
+      currentItems = newItems;
+      // Keep only selections that exist in new items
+      var newSet = new Set(newItems);
+      selected = new Set(Array.from(selected).filter(function(x){return newSet.has(x)}));
+      // If nothing selected, select all new items
+      if (selected.size === 0 && newItems.length > 0) selected = new Set(newItems);
+      updateTrigger(); renderList('');
+    }
+  };
+}
+
+// ============ FILTERING LOGIC ============
+function getFilteredData() {
+  var laneSel = msLane.getSelected();
+  var polSel = msPol.getSelected();
+  var delSel = msDel.getSelected();
+  var culSel = msCul.getSelected();
+  var dirSel = msDir.getSelected();
+  var etdFrom = document.getElementById('etdFrom').value;
+  var etdTo = document.getElementById('etdTo').value;
+  var etbFrom = document.getElementById('etbFrom').value;
+  var etbTo = document.getElementById('etbTo').value;
+
+  var result = ALL_DATA.filter(function(r) {
+    if (!laneSel.has(r.lane)) return false;
+    if (!polSel.has(r.pol)) return false;
+    if (!delSel.has(r.del_port)) return false;
+    if (!culSel.has(r.cul_code)) return false;
+    var recDir = r.direction || '';
+    if (recDir && !dirSel.has(recDir)) return false;
+    // SUL_YN filter
+    if (sulFilter === 'SUL' && r.sul_yn !== 'Y') return false;
+    if (sulFilter === 'CUL' && r.sul_yn !== 'N') return false;
+    if (etdFrom && r.etd && r.etd < etdFrom) return false;
+    if (etdTo && r.etd && r.etd > etdTo) return false;
+    // Per-record ETB check: only keep records whose ETB is within the selected range
+    if (etbFrom && r.etb && r.etb < etbFrom) return false;
+    if (etbTo && r.etb && r.etb > etbTo) return false;
+    return true;
+  });
+
+  return result;
+}
+
+// ============ INIT ============
+function initFilters() {
+  msLane = buildMultiSelect('Lane', LANE_LIST, function() { onLaneChange(msLane.getSelected()); saveFilterState(); }, 'LANE');
+  msPol = buildMultiSelect('Pol', POL_LIST, function() { refreshAll(); saveFilterState(); }, 'POL');
+  msDel = buildMultiSelect('Del', DEL_LIST, function() { refreshAll(); saveFilterState(); }, 'DEL');
+  msCul = buildMultiSelect('Cul', CUL_LIST, function() { refreshAll(); saveFilterState(); }, 'CUL');
+  msDir = buildMultiSelect('Dir', DIR_LIST, function() { refreshAll(); saveFilterState(); }, 'Direction');
+}
+
+// ============ CASCADING FILTER ============
+// Unified cascade: update CUL/POL/DEL pools based on current Lane + ETD selection
+function cascadeFilters() {
+  var laneSel = msLane.getSelected();
+  var etdFrom = document.getElementById('etdFrom').value;
+  var etdTo = document.getElementById('etdTo').value;
+  var etbFrom = document.getElementById('etbFrom').value;
+  var etbTo = document.getElementById('etbTo').value;
+  var allLanes = (laneSel.size === 0 || laneSel.size === LANE_LIST.length);
+  var allETD = (!etdFrom && !etdTo);
+  var allETA = (!etbFrom && !etbTo);
+
+  // If both Lane, ETD, and ETA are "all", restore full lists and select all
+  if (allLanes && allETD && allETA) {
+    msCul.updateItems(CUL_LIST); msCul.setAll();
+    msPol.updateItems(POL_LIST); msPol.setAll();
+    msDel.updateItems(DEL_LIST); msDel.setAll();
+    return;
+  }
+
+  // Filter ALL_DATA by current Lane + ETD selection, with CUL-level ETB
+  var culPool = [], polPool = [], delPool = [];
+  var culSet = {}, polSet = {}, delSet = {};
+
+  // Pre-scan for ETB: which CULs have in-range ETB
+  var cInRangeCuls = {};
+  if (!allETA) {
+    ALL_DATA.forEach(function(r) {
+      if (r.etb && (!etbFrom || r.etb >= etbFrom) && (!etbTo || r.etb <= etbTo)) {
+        cInRangeCuls[r.cul_code] = true;
+      }
+    });
+  }
+
+  ALL_DATA.forEach(function(r) {
+    if (!allLanes && !laneSel.has(r.lane)) return;
+    if (etdFrom && r.etd < etdFrom) return;
+    if (etdTo && r.etd > etdTo) return;
+    if (!allETA && !cInRangeCuls[r.cul_code]) return;
+    if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
+    if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
+    if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
+  });
+  culPool.sort(); polPool.sort(); delPool.sort();
+
+  msCul.updateItems(culPool);
+  msPol.updateItems(polPool);
+  msDel.updateItems(delPool);
+  // During normal user interaction, reset to show all available options
+  if (!window._isRestoring) {
+    msCul.setAll(); msPol.setAll(); msDel.setAll();
+  }
+}
+
+function onLaneChange(selectedLanes) {
+  // Adjust ETD range to selected lane(s) data range
+  var fromEl = document.getElementById('etdFrom');
+  var toEl = document.getElementById('etdTo');
+  var etbFrom = document.getElementById('etbFrom');
+  var etbTo = document.getElementById('etbTo');
+  if (selectedLanes.size === 0 || selectedLanes.size === LANE_LIST.length) {
+    // All lanes — restore full ETD/ETA range
+    fromEl.min = GLOBAL_ETD_MIN; fromEl.max = GLOBAL_ETD_MAX;
+    toEl.min = GLOBAL_ETD_MIN; toEl.max = GLOBAL_ETD_MAX;
+    if (GLOBAL_ETB_MIN) { etbFrom.min = GLOBAL_ETB_MIN; etbFrom.max = GLOBAL_ETB_MAX; }
+    if (GLOBAL_ETB_MIN) { etbTo.min = GLOBAL_ETB_MIN; etbTo.max = GLOBAL_ETB_MAX; }
+  } else {
+    // Specific lane(s) — narrow to their ETD/ETA range
+    var lanes = Array.from(selectedLanes);
+    var laneMin = '', laneMax = '';
+    var laneEtaMin = '', laneEtaMax = '';
+    lanes.forEach(function(lane) {
+      var m = LANE_ETD_MAP[lane];
+      if (m) {
+        if (!laneMin || m.min < laneMin) laneMin = m.min;
+        if (!laneMax || m.max > laneMax) laneMax = m.max;
+      }
+      var em = LANE_ETB_MAP[lane];
+      if (em) {
+        if (!laneEtaMin || em.min < laneEtaMin) laneEtaMin = em.min;
+        if (!laneEtaMax || em.max > laneEtaMax) laneEtaMax = em.max;
+      }
+    });
+    if (laneMin && laneMax) {
+      fromEl.min = laneMin; fromEl.max = laneMax;
+      toEl.min = laneMin; toEl.max = laneMax;
+    }
+    if (laneEtaMin && laneEtaMax) {
+      etbFrom.min = laneEtaMin; etbFrom.max = laneEtaMax;
+      etbTo.min = laneEtaMin; etbTo.max = laneEtaMax;
+    }
+  }
+  cascadeFilters();
+  refreshAll();
+}
+
+function initETDRange(min, max) {
+  GLOBAL_ETD_MIN = min; GLOBAL_ETD_MAX = max;
+  var fromEl = document.getElementById('etdFrom');
+  var toEl = document.getElementById('etdTo');
+  fromEl.min = min; fromEl.max = max;
+  toEl.min = min; toEl.max = max;
+  fromEl.onchange = function() { cascadeFilters(); refreshAll(); saveFilterState(); };
+  toEl.onchange = function() { cascadeFilters(); refreshAll(); saveFilterState(); };
+}
+
+function initETARange(min, max) {
+  GLOBAL_ETB_MIN = min || ''; GLOBAL_ETB_MAX = max || '';
+  var fromEl = document.getElementById('etbFrom');
+  var toEl = document.getElementById('etbTo');
+  if (min) { fromEl.min = min; fromEl.max = max; }
+  if (min) { toEl.min = min; toEl.max = max; }
+  fromEl.onchange = function() { cascadeFilters(); refreshAll(); saveFilterState(); };
+  toEl.onchange = function() { cascadeFilters(); refreshAll(); saveFilterState(); };
+}
+
+// ============ KPI CARDS ============
+function updateKPIs(data) {
+  var laneSet = new Set(data.map(function(r) { return r.lane; }));
+  document.getElementById('kpiLane').textContent = laneSet.size.toLocaleString();
+  document.getElementById('kpi20').textContent = data.reduce(function(s,r){return s+r.ft20},0).toLocaleString();
+  document.getElementById('kpi40').textContent = data.reduce(function(s,r){return s+r.ft40},0).toLocaleString();
+  var tteu = data.reduce(function(s,r){return s+r.teu},0);
+  document.getElementById('kpiTeu').textContent = tteu.toLocaleString();
+  document.getElementById('kpiBooking').textContent = data.length.toLocaleString();
+  var tw = Math.ceil(data.reduce(function(s,r){return s+r.container_weight},0)/1000*10)/10;
+  document.getElementById('kpiWeight').textContent = tw.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1});
+}
+
+// ============ SUMMARY TABLE ============
+function buildSummary(data) {
+  var groups = {};
+  data.forEach(function(r) {
+    var lk = r.lane || '(blank)';
+    var ck = r.cul_code || '(blank)';
+    var comboKey = r.pol + '|||' + r.del_port;
+    if (!groups[lk]) groups[lk] = {};
+    if (!groups[lk][ck]) groups[lk][ck] = {};
+    if (!groups[lk][ck][comboKey]) {
+      groups[lk][ck][comboKey] = { pol: r.pol, del: r.del_port, eta: r.etb || '', booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
+    }
+    groups[lk][ck][comboKey].booking_sum += r.booking_cnt;
+    groups[lk][ck][comboKey].weight_sum += r.container_weight;
+    groups[lk][ck][comboKey].ft20_sum += r.ft20;
+    groups[lk][ck][comboKey].ft40_sum += r.ft40;
+    groups[lk][ck][comboKey].ft40rf_sum += r.ft40rf;
+  });
+
+  var tbody = '';
+  var totalRows = 0;
+  var lanes = Object.keys(groups).sort();
+  lanes.forEach(function(lane) {
+    var laneBooking = 0, laneWeight = 0, laneFT20 = 0, laneFT40 = 0, laneFT40RF = 0;
+    var culCodes = Object.keys(groups[lane]).sort();
+    culCodes.forEach(function(ck) {
+      var combos = Object.values(groups[lane][ck]);
+      laneBooking += combos.reduce(function(s,v){return s+v.booking_sum},0);
+      laneWeight += combos.reduce(function(s,v){return s+v.weight_sum},0);
+      laneFT20 += combos.reduce(function(s,v){return s+v.ft20_sum},0);
+      laneFT40 += combos.reduce(function(s,v){return s+v.ft40_sum},0);
+      laneFT40RF += combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
+    });
+
+    var laneFEU = laneFT40 + laneFT40RF;
+
+    tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
+    tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
+    tbody += '<td></td><td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + laneBooking.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + (Math.ceil(laneWeight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+    tbody += '<td class="num highlight">' + (laneBooking > 0 ? (Math.ceil((laneWeight/1000)/laneBooking*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) : '0.0') + '</td>';
+
+    tbody += '</tr>';
+
+    culCodes.forEach(function(ck) {
+      var combos = Object.values(groups[lane][ck]).sort(function(a,b){ return a.pol.localeCompare(b.pol); });
+      var culBooking = combos.reduce(function(s,v){return s+v.booking_sum},0);
+      var culWeight = combos.reduce(function(s,v){return s+v.weight_sum},0);
+      var culFT20 = combos.reduce(function(s,v){return s+v.ft20_sum},0);
+      var culFT40 = combos.reduce(function(s,v){return s+v.ft40_sum},0);
+      var culFT40RF = combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
+      var culFEU = culFT40 + culFT40RF;
+
+      tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
+      tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
+      tbody += '<td></td><td></td><td></td>';
+      tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
+      tbody += '<td class="num accent">' + culFEU.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + culBooking.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + (Math.ceil(culWeight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+      tbody += '<td class="num">' + (culBooking > 0 ? (Math.ceil((culWeight/1000)/culBooking*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) : '0.0') + '</td>';
+
+      tbody += '</tr>';
+      totalRows++;
+
+      // Group combos by POL for POL TOTAL row
+      var polGroups = {};
+      combos.forEach(function(c) {
+        if (!polGroups[c.pol]) polGroups[c.pol] = { combos: [], booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
+        polGroups[c.pol].combos.push(c);
+        polGroups[c.pol].booking_sum += c.booking_sum;
+        polGroups[c.pol].weight_sum += c.weight_sum;
+        polGroups[c.pol].ft20_sum += c.ft20_sum;
+        polGroups[c.pol].ft40_sum += c.ft40_sum;
+        polGroups[c.pol].ft40rf_sum += c.ft40rf_sum;
+      });
+
+      Object.keys(polGroups).sort(function(a, b) {
+        var ea = '', eb = '';
+        for (var si = 0; si < polGroups[a].combos.length; si++) { var eta = polGroups[a].combos[si].eta; if (eta && (!ea || eta < ea)) ea = eta; }
+        for (var si = 0; si < polGroups[b].combos.length; si++) { var eta = polGroups[b].combos[si].eta; if (eta && (!eb || eta < eb)) eb = eta; }
+        if (!ea && !eb) return a.localeCompare(b);
+        if (!ea) return 1; if (!eb) return -1;
+        return ea.localeCompare(eb);
+      }).forEach(function(polKey) {
+        var pg = polGroups[polKey];
+        var pgFEU = pg.ft40_sum + pg.ft40rf_sum;
+        // Use ETB from the first combo of this POL
+        var polETB = '';
+        for (var pi = 0; pi < pg.combos.length; pi++) {
+          if (pg.combos[pi].eta) { polETB = pg.combos[pi].eta; break; }
+        }
+        var polId = escapeHtml(lane) + '|||' + escapeHtml(polKey);
+        tbody += '<tr class="detail-row hidden pol-total" data-parent="' + escapeHtml(lane) + '" data-pol="' + polId + '" onclick="togglePolTotal(this)">';
+        tbody += '<td></td><td></td>';
+        tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(polKey) + ' TOTAL</b></td>';
+        tbody += '<td></td><td>' + (polETB || '-') + '</td>';
+        tbody += '<td class="num">' + pg.ft20_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + pg.ft40_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + pg.ft40rf_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num accent">' + pgFEU.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + pg.booking_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + (Math.ceil(pg.weight_sum/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+        var pgAvg = pg.booking_sum > 0 ? Math.ceil((pg.weight_sum/1000) / pg.booking_sum * 10) / 10 : 0;
+        tbody += '<td class="num">' + pgAvg.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+        tbody += '</tr>';
+        totalRows++;
+
+        pg.combos.forEach(function(c) {
+          var cFEU = c.ft40_sum + c.ft40rf_sum;
+          tbody += '<tr class="detail-row hidden pol-del" data-parent="' + escapeHtml(lane) + '" data-pol="' + polId + '">';
+          tbody += '<td></td><td></td>';
+          tbody += '<td>' + escapeHtml(c.pol) + '</td>';
+          tbody += '<td>' + escapeHtml(c.del) + '</td>';
+          tbody += '<td></td>';  // ETB shown on POL TOTAL row only
+          tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + (Math.ceil(c.weight_sum/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+          var avg = c.booking_sum > 0 ? Math.ceil((c.weight_sum/1000) / c.booking_sum * 10) / 10 : 0;
+          tbody += '<td class="num">' + avg.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+          tbody += '</tr>';
+          totalRows++;
+        });
+      });
+    });
+  });
+
+  if (totalRows === 0) {
+    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
+  } else {
+    document.getElementById('summaryTable').querySelector('tbody').innerHTML = tbody;
+  }
+  document.getElementById('summaryCount').textContent = totalRows + ' groups';
+}
+
+function toggleLane(row) {
+  row.classList.toggle('expanded');
+  row.classList.toggle('collapsed', !row.classList.contains('expanded'));
+  var lane = row.dataset.lane;
+  var visible = row.classList.contains('expanded');
+  // Show CUL + POL TOTAL rows; keep DEL rows hidden by default
+  document.querySelectorAll('[data-parent="' + lane + '"]:not(.pol-del)').forEach(function(r) {
+    r.classList.toggle('hidden', !visible);
+  });
+  // When collapsing, also hide DEL rows and reset POL expanded state
+  if (!visible) {
+    document.querySelectorAll('[data-pol]').forEach(function(r) { r.classList.remove('expanded'); });
+  }
+}
+
+function togglePolTotal(row) {
+  row.classList.toggle('expanded');
+  var polId = row.dataset.pol;
+  var visible = row.classList.contains('expanded');
+  document.querySelectorAll('[data-pol="' + polId + '"].pol-del').forEach(function(r) {
+    r.classList.toggle('hidden', !visible);
+  });
+}
+
+// ============ CHARTS ============
+var chartPolInst, chartDelInst, chartDelVolInst;
+function updateCharts(data) {
+  // TEU by POL
+  var polMap = {};
+  data.forEach(function(r) {
+    var k = r.pol || '(blank)';
+    polMap[k] = (polMap[k] || 0) + r.teu;
+  });
+  var polEntries = Object.entries(polMap).sort(function(a,b){return b[1]-a[1]}).slice(0,15);
+
+  var ctxPol = document.getElementById('chartPol').getContext('2d');
+  if (chartPolInst) chartPolInst.destroy();
+  chartPolInst = new Chart(ctxPol, {
+    type: 'bar', data: { labels: polEntries.map(function(e){return e[0]}), datasets: [{ label: 'TEU', data: polEntries.map(function(e){return e[1]}), backgroundColor: '#0f3460', borderRadius: 4 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } } } } }
+  });
+
+  // TEU by DEL
+  var delMap = {};
+  data.forEach(function(r) {
+    var k = r.del_port || '(blank)';
+    delMap[k] = (delMap[k] || 0) + r.teu;
+  });
+  var delEntries = Object.entries(delMap).sort(function(a,b){return b[1]-a[1]}).slice(0,15);
+
+  var ctxDel = document.getElementById('chartDel').getContext('2d');
+  if (chartDelInst) chartDelInst.destroy();
+  chartDelInst = new Chart(ctxDel, {
+    type: 'bar', data: { labels: delEntries.map(function(e){return e[0]}), datasets: [{ label: 'TEU', data: delEntries.map(function(e){return e[1]}), backgroundColor: '#e74c3c', borderRadius: 4 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } } } } }
+  });
+
+  // DEL Volume (Container Weight) by DEL
+  var delVolMap = {};
+  data.forEach(function(r) {
+    var k = r.del_port || '(blank)';
+    delVolMap[k] = (delVolMap[k] || 0) + r.container_weight;
+  });
+  var delVolEntries = Object.entries(delVolMap).sort(function(a,b){return b[1]-a[1]}).slice(0,15);
+
+  var ctxDelVol = document.getElementById('chartDelVol').getContext('2d');
+  if (chartDelVolInst) chartDelVolInst.destroy();
+  chartDelVolInst = new Chart(ctxDelVol, {
+    type: 'bar', data: { labels: delVolEntries.map(function(e){return e[0]}), datasets: [{ label: 'Weight', data: delVolEntries.map(function(e){return e[1]}), backgroundColor: '#27ae60', borderRadius: 4 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } } } } }
+  });
+}
+
+// ============ DETAIL TABLE ============
+function updateDetail(data) {
+  var searchTxt = (document.getElementById('detailSearch').value || '').toLowerCase();
+  var filtered = data;
+  if (searchTxt) {
+    filtered = data.filter(function(r) {
+      return (r.bl_no || '').toLowerCase().indexOf(searchTxt) !== -1
+          || (r.shipper || '').toLowerCase().indexOf(searchTxt) !== -1
+          || (r.forwarder || '').toLowerCase().indexOf(searchTxt) !== -1
+          || (r.contract_no || '').toLowerCase().indexOf(searchTxt) !== -1
+          || (r.vvd || '').toLowerCase().indexOf(searchTxt) !== -1
+          || (r.lane || '').toLowerCase().indexOf(searchTxt) !== -1;
+    });
+  }
+  var rows = filtered.slice(0, 500).map(function(r) {
+    return '<tr>' +
+      '<td>' + escapeHtml(r.bl_no) + '</td>' +
+      '<td>' + escapeHtml(r.cul_code) + '</td>' +
+      '<td>' + escapeHtml(r.vvd) + '</td>' +
+      '<td>' + escapeHtml(r.lane) + '</td>' +
+      '<td>' + escapeHtml(r.por) + '</td>' +
+      '<td><b>' + escapeHtml(r.pol) + '</b></td>' +
+      '<td>' + escapeHtml(r.etd) + '</td>' +
+      '<td>' + escapeHtml(r.pod) + '</td>' +
+      '<td><b>' + escapeHtml(r.del_port) + '</b></td>' +
+      '<td class="num">' + r.ft20 + '</td>' +
+      '<td class="num">' + r.ft40 + '</td>' +
+      '<td class="num"><b>' + r.teu + '</b></td>' +
+      '<td class="num">' + r.booking_cnt + '</td>' +
+      '<td class="num">' + (Math.ceil(r.container_weight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>' +
+      '<td>' + escapeHtml(r.shipper) + '</td>' +
+      '<td>' + escapeHtml(r.forwarder) + '</td>' +
+      '</tr>';
+  }).join('');
+  document.getElementById('detailTable').querySelector('tbody').innerHTML = rows || '<tr><td colspan="16" style="text-align:center;padding:20px">No matching records</td></tr>';
+  document.getElementById('detailCount').textContent = 'Showing ' + Math.min(filtered.length, 500) + ' of ' + filtered.length + ' records';
+}
+
+// ============ CUSTOM NOTES ============
+function getNotes() {
+  try { return JSON.parse(localStorage.getItem('db_notes') || '{}'); } catch(e) { return {}; }
+}
+function saveNotes(notes) {
+  localStorage.setItem('db_notes', JSON.stringify(notes));
+}
+function renderNotes() {
+  var notes = getNotes();
+  var selectedLanes = Array.from(msLane ? msLane.getSelected() : []);
+  var grid = document.getElementById('notesGrid');
+  var html = '';
+  selectedLanes.forEach(function(lane) {
+    var note = notes[lane] || '';
+    html += '<div class="note-card">' +
+      '<div class="note-vvd">' + escapeHtml(lane) + '</div>' +
+      '<textarea data-lane="' + escapeHtml(lane) + '" placeholder="Add your notes here...">' + escapeHtml(note) + '</textarea>' +
+      (note ? '<div class="note-save">✓ Saved</div>' : '') +
+      '</div>';
+  });
+  if (!html) html = '<div style="color:#999;font-size:13px;padding:8px">Select Lane(s) above to add notes.</div>';
+  grid.innerHTML = html;
+
+  // Auto-save on blur
+  grid.querySelectorAll('textarea').forEach(function(ta) {
+    ta.onblur = function() {
+      var lane = ta.dataset.lane;
+      var notes = getNotes();
+      notes[lane] = ta.value;
+      saveNotes(notes);
+      ta.nextElementSibling && ta.nextElementSibling.remove();
+      if (ta.value) {
+        var s = document.createElement('div'); s.className = 'note-save'; s.textContent = '✓ Saved';
+        ta.parentNode.appendChild(s);
+      }
+    };
+  });
+}
+
+function addNoteForSelected() {
+  var selected = Array.from(msLane.getSelected());
+  if (selected.length === 0) { alert('Please select at least one Lane first.'); return; }
+  var lane = selected[0];
+  var notes = getNotes();
+  notes[lane] = notes[lane] || '';
+  saveNotes(notes);
+  renderNotes();
+}
+
+// ============ FILTER PERSISTENCE (localStorage) ============
+function saveFilterState() {
+  try {
+    var state = {
+      lane: Array.from(msLane.getSelected()),
+      pol: Array.from(msPol.getSelected()),
+      del: Array.from(msDel.getSelected()),
+      cul: Array.from(msCul.getSelected()),
+      dir: Array.from(msDir.getSelected()),
+      etdFrom: document.getElementById('etdFrom').value,
+      etdTo: document.getElementById('etdTo').value,
+      etbFrom: document.getElementById('etbFrom').value,
+      etbTo: document.getElementById('etbTo').value,
+      sul: sulFilter,
+      detailSearch: document.getElementById('detailSearch').value
+    };
+    localStorage.setItem('db_filter_state', JSON.stringify(state));
+  } catch(e) { console.warn('Failed to save filter state:', e); }
+}
+
+function restoreFilterState() {
+  try {
+    var raw = localStorage.getItem('db_filter_state');
+    if (!raw) return false;
+    var state = JSON.parse(raw);
+    console.log('[RESTORE] Saved state:', JSON.stringify(state).substring(0, 200));
+
+    // Suppress ALL callbacks during restore
+    window._isRestoring = true;
+    msLane._suppress(true); msCul._suppress(true); msDir._suppress(true); msPol._suppress(true); msDel._suppress(true);
+
+    // Step 1: Restore Lane
+    if (state.lane && state.lane.length && state.lane.length < LANE_LIST.length) {
+      msLane.setSelected(state.lane);
+      console.log('[RESTORE] Lane set to:', state.lane);
+    }
+
+    // Step 2: Restore ETD & ETA
+    if (state.etdFrom) document.getElementById('etdFrom').value = state.etdFrom;
+    if (state.etdTo) document.getElementById('etdTo').value = state.etdTo;
+    if (state.etbFrom) document.getElementById('etbFrom').value = state.etbFrom;
+    if (state.etbTo) document.getElementById('etbTo').value = state.etbTo;
+
+    // Restore SUL_YN filter
+    if (state.sul && state.sul !== 'ALL') {
+      sulFilter = state.sul;
+      document.querySelectorAll("#sulSeg button").forEach(function(b){
+        b.classList.toggle("active", b.dataset.sul === state.sul);
+      });
+    }
+
+    // Step 3: Manually set saved CUL/POL/DEL/DIR selections BEFORE cascade
+    if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
+      msCul.setSelected(state.cul);
+      console.log('[RESTORE] CUL set to:', state.cul.slice(0,5), '... total:', state.cul.length);
+    }
+    if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) {
+      msPol.setSelected(state.pol);
+      console.log('[RESTORE] POL set to:', state.pol);
+    }
+    if (state.del && state.del.length && state.del.length < DEL_LIST.length) {
+      msDel.setSelected(state.del);
+      console.log('[RESTORE] DEL set to:', state.del);
+    }
+    if (state.dir && state.dir.length && state.dir.length < DIR_LIST.length) {
+      msDir.setSelected(state.dir);
+      console.log('[RESTORE] DIR set to:', state.dir);
+    }
+
+    // Step 4: Cascade updates pools - updateItems will KEEP valid selections
+    console.log('[RESTORE] Before cascade - POL selected:', Array.from(msPol.getSelected()).slice(0,5), 'DEL selected:', Array.from(msDel.getSelected()).slice(0,5));
+    onLaneChange(msLane.getSelected());
+    console.log('[RESTORE] After cascade - POL selected:', Array.from(msPol.getSelected()).slice(0,5), 'DEL selected:', Array.from(msDel.getSelected()).slice(0,5));
+
+    // Step 5: Re-apply saved selections after cascade (in case updateItems defaulted to all)
+    if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) {
+      var polValid = state.pol.filter(function(v){ return msPol.getItems().indexOf(v) >= 0; });
+      if (polValid.length > 0) { msPol.setSelected(polValid); }
+      console.log('[RESTORE] POL re-applied:', polValid.length, 'valid of', state.pol.length);
+    }
+    if (state.del && state.del.length && state.del.length < DEL_LIST.length) {
+      var delValid = state.del.filter(function(v){ return msDel.getItems().indexOf(v) >= 0; });
+      if (delValid.length > 0) { msDel.setSelected(delValid); }
+      console.log('[RESTORE] DEL re-applied:', delValid.length, 'valid of', state.del.length);
+    }
+    if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
+      var culValid = state.cul.filter(function(v){ return msCul.getItems().indexOf(v) >= 0; });
+      if (culValid.length > 0) { msCul.setSelected(culValid); }
+    }
+
+    // Step 6: Restore detail search
+    if (state.detailSearch) document.getElementById('detailSearch').value = state.detailSearch;
+
+    // Re-enable callbacks
+    msLane._suppress(false); msCul._suppress(false); msDir._suppress(false); msPol._suppress(false); msDel._suppress(false);
+    window._isRestoring = false;
+
+    refreshAll();
+    return true;
+  } catch(e) { console.warn('Failed to restore filter state:', e); return false; }
+}
+
+// ============ MAIN REFRESH ============
+function refreshAll() {
+  var data = getFilteredData();
+  updateKPIs(data);
+  buildSummary(data);
+  updateCharts(data);
+  updateDetail(data);
+  renderNotes();
+}
+
+// ============ SETUP ============
+function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+document.getElementById('detailSearch').oninput = function() { updateDetail(getFilteredData()); saveFilterState(); };
+document.getElementById('resetAll').onclick = function() {
+  msLane.setAll();
+  msCul.setAll();
+  msPol.setAll();
+  msDel.setAll();
+  msDir.setAll();
+  var fromEl = document.getElementById('etdFrom');
+  var toEl = document.getElementById('etdTo');
+  fromEl.value = ''; toEl.value = '';
+  fromEl.min = GLOBAL_ETD_MIN; fromEl.max = GLOBAL_ETD_MAX;
+  toEl.min = GLOBAL_ETD_MIN; toEl.max = GLOBAL_ETD_MAX;
+  var etbFrom = document.getElementById('etbFrom');
+  var etbTo = document.getElementById('etbTo');
+  etbFrom.value = ''; etbTo.value = '';
+  if (GLOBAL_ETB_MIN) { etbFrom.min = GLOBAL_ETB_MIN; etbFrom.max = GLOBAL_ETB_MAX; }
+  if (GLOBAL_ETB_MIN) { etbTo.min = GLOBAL_ETB_MIN; etbTo.max = GLOBAL_ETB_MAX; }
+  // Reset SUL_YN to ALL
+  sulFilter = "ALL";
+  document.querySelectorAll("#sulSeg button").forEach(function(b){
+    b.classList.toggle("active", b.dataset.sul === "ALL");
+  });
+  refreshAll();
+  saveFilterState();
+};
+document.getElementById('btnAddNote').onclick = addNoteForSelected;
+document.getElementById('btnClearNotes').onclick = function() {
+  if (confirm('Clear all saved notes?')) { localStorage.removeItem('db_notes'); renderNotes(); }
+};
+// Note: initFilters() and refreshAll() are called inside loadData() after fetch completes
+</script>
+</body>
 </html>
