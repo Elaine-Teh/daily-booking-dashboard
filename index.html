@@ -51,15 +51,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .etd-filter input[type=date]:focus,.etb-filter input[type=date]:focus{border-color:#0f3460}
 .etd-filter .etd-sep,.etb-filter .etd-sep{color:#999;font-size:13px}
 
-/* SUL_YN Segmented Filter */
-.sul-filter{display:flex;align-items:center;gap:6px}
-.sul-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
-.sul-seg{display:flex;border-radius:6px;overflow:hidden;border:1px solid #ddd}
-.sul-seg button{padding:5px 14px;font-size:12px;font-weight:600;border:none;background:#f5f6fa;color:#666;cursor:pointer;transition:.15s;border-right:1px solid #ddd}
-.sul-seg button:last-child{border-right:none}
-.sul-seg button.active{background:#0f3460;color:#fff}
-.sul-seg button:hover:not(.active){background:#e8f0fe}
-
 /* KPI Cards */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:14px}
 .kpi-card{background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.08);text-align:center}
@@ -87,12 +78,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
 .summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
 .summary-table tr.detail-row.hidden{display:none}
-.summary-table tr.detail-row.pol-total td{background:#e8f0fe;font-weight:700;color:#0f3460;border-bottom:2px solid #c5d5f0;cursor:pointer}
-.summary-table tr.detail-row.pol-total td.num{color:#0f3460;font-weight:700}
-.summary-table tr.detail-row.pol-total td.nest{color:#0f3460;font-weight:700}
-.summary-table .pol-total .expand-icon{display:inline-block;width:14px;text-align:center;transition:transform .2s;font-size:11px}
-.summary-table .pol-total.expanded .expand-icon{transform:rotate(90deg)}
-.summary-table tr.detail-row.pol-del.hidden{display:none}
 .summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-table .highlight{color:#0f3460;font-weight:600}
 
@@ -216,19 +201,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <span class="etd-sep">~</span>
       <input type="date" id="etdTo" title="ETD To">
     </div>
-    <div class="etd-filter">
-      <label>POL ETB</label>
-      <input type="date" id="etbFrom" title="POL ETB From">
+    <div class="eta-filter">
+      <label>ETB</label>
+      <input type="date" id="etbFrom" title="ETA From">
       <span class="etd-sep">~</span>
-      <input type="date" id="etbTo" title="POL ETB To">
-    </div>
-    <div class="sul-filter">
-      <label>SUL_YN</label>
-      <div class="sul-seg" id="sulSeg">
-        <button data-sul="ALL" class="active">ALL</button>
-        <button data-sul="SUL">SUL</button>
-        <button data-sul="CUL">CUL</button>
-      </div>
+      <input type="date" id="etbTo" title="ETA To">
     </div>
     <span class="filter-clear" id="resetAll">Reset All</span>
   </div>
@@ -351,6 +328,7 @@ var msLane, msPol, msDel, msCul, msDir;
       LANE_ETD_MAP = payload.lane_etd_map || {};
       LANE_ETB_MAP = payload.lane_etb_map || {};
 
+
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
       document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
@@ -373,17 +351,6 @@ var msLane, msPol, msDel, msCul, msDir;
       console.error('Data load error:', err);
     });
 })();
-
-// SUL_YN FILTER
-var sulFilter = "ALL";
-function setSulFilter(val, btn) {
-  sulFilter = val;
-  document.querySelectorAll("#sulSeg button").forEach(function(b){b.classList.remove("active")});
-  btn.classList.add("active"); refreshAll(); saveFilterState();
-}
-document.querySelectorAll("#sulSeg button").forEach(function(b){
-  b.onclick = function(){ setSulFilter(this.dataset.sul, this); };
-});
 
 // ============ MULTI-SELECT ENGINE ============
 function buildMultiSelect(id, items, onChange, label) {
@@ -486,16 +453,6 @@ function getFilteredData() {
   var etbFrom = document.getElementById('etbFrom').value;
   var etbTo = document.getElementById('etbTo').value;
 
-  // Pre-scan: if ETB filter active, determine which CULs have any ETB in range
-  var inRangeCuls = {};
-  if (etbFrom || etbTo) {
-    ALL_DATA.forEach(function(r) {
-      if (r.etb && (!etbFrom || r.etb >= etbFrom) && (!etbTo || r.etb <= etbTo)) {
-        inRangeCuls[r.cul_code] = true;
-      }
-    });
-  }
-
   var result = ALL_DATA.filter(function(r) {
     if (!laneSel.has(r.lane)) return false;
     if (!polSel.has(r.pol)) return false;
@@ -503,12 +460,10 @@ function getFilteredData() {
     if (!culSel.has(r.cul_code)) return false;
     var recDir = r.direction || '';
     if (recDir && !dirSel.has(recDir)) return false;
-    // SUL_YN filter
-    if (sulFilter === 'SUL' && r.sul_yn !== 'Y') return false;
-    if (sulFilter === 'CUL' && r.sul_yn !== 'N') return false;
     if (etdFrom && r.etd && r.etd < etdFrom) return false;
     if (etdTo && r.etd && r.etd > etdTo) return false;
-    if ((etbFrom || etbTo) && !inRangeCuls[r.cul_code]) return false;
+    if (etbFrom && r.etb && r.etb < etbFrom) return false;
+    if (etbTo && r.etb && r.etb > etbTo) return false;
     return true;
   });
 
@@ -544,25 +499,15 @@ function cascadeFilters() {
     return;
   }
 
-  // Filter ALL_DATA by current Lane + ETD selection, with CUL-level ETB
+  // Filter ALL_DATA by current Lane + ETD selection
   var culPool = [], polPool = [], delPool = [];
   var culSet = {}, polSet = {}, delSet = {};
-
-  // Pre-scan for ETB: which CULs have in-range ETB
-  var cInRangeCuls = {};
-  if (!allETA) {
-    ALL_DATA.forEach(function(r) {
-      if (r.etb && (!etbFrom || r.etb >= etbFrom) && (!etbTo || r.etb <= etbTo)) {
-        cInRangeCuls[r.cul_code] = true;
-      }
-    });
-  }
-
   ALL_DATA.forEach(function(r) {
     if (!allLanes && !laneSel.has(r.lane)) return;
     if (etdFrom && r.etd < etdFrom) return;
     if (etdTo && r.etd > etdTo) return;
-    if (!allETA && !cInRangeCuls[r.cul_code]) return;
+    if (etbFrom && r.etb && r.etb < etbFrom) return;
+    if (etbTo && r.etb && r.etb > etbTo) return;
     if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
     if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
     if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
@@ -649,8 +594,8 @@ function updateKPIs(data) {
   var tteu = data.reduce(function(s,r){return s+r.teu},0);
   document.getElementById('kpiTeu').textContent = tteu.toLocaleString();
   document.getElementById('kpiBooking').textContent = data.length.toLocaleString();
-  var tw = Math.ceil(data.reduce(function(s,r){return s+r.container_weight},0)/1000*10)/10;
-  document.getElementById('kpiWeight').textContent = tw.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1});
+  var tw = data.reduce(function(s,r){return s+r.container_weight},0);
+  document.getElementById('kpiWeight').textContent = tw.toLocaleString();
 }
 
 // ============ SUMMARY TABLE ============
@@ -691,14 +636,13 @@ function buildSummary(data) {
 
     tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
     tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneBooking.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + (Math.ceil(laneWeight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-    tbody += '<td class="num highlight">' + (laneBooking > 0 ? (Math.ceil((laneWeight/1000)/laneBooking*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) : '0.0') + '</td>';
-
+    tbody += '<td class="num highlight">' + laneWeight.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + (laneBooking > 0 ? Math.round(laneWeight/laneBooking).toLocaleString() : '0') + '</td>';
     tbody += '</tr>';
 
     culCodes.forEach(function(ck) {
@@ -712,79 +656,34 @@ function buildSummary(data) {
 
       tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
       tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
-      tbody += '<td></td><td></td><td></td>';
+      tbody += '<td></td><td></td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
       tbody += '<td class="num accent">' + culFEU.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culBooking.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + (Math.ceil(culWeight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-      tbody += '<td class="num">' + (culBooking > 0 ? (Math.ceil((culWeight/1000)/culBooking*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) : '0.0') + '</td>';
-
+      tbody += '<td class="num">' + culWeight.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + (culBooking > 0 ? Math.round(culWeight/culBooking).toLocaleString() : '0') + '</td>';
       tbody += '</tr>';
       totalRows++;
 
-      // Group combos by POL for POL TOTAL row
-      var polGroups = {};
       combos.forEach(function(c) {
-        if (!polGroups[c.pol]) polGroups[c.pol] = { combos: [], booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
-        polGroups[c.pol].combos.push(c);
-        polGroups[c.pol].booking_sum += c.booking_sum;
-        polGroups[c.pol].weight_sum += c.weight_sum;
-        polGroups[c.pol].ft20_sum += c.ft20_sum;
-        polGroups[c.pol].ft40_sum += c.ft40_sum;
-        polGroups[c.pol].ft40rf_sum += c.ft40rf_sum;
-      });
-
-      Object.keys(polGroups).sort(function(a, b) {
-        var ea = '', eb = '';
-        for (var si = 0; si < polGroups[a].combos.length; si++) { var eta = polGroups[a].combos[si].eta; if (eta && (!ea || eta < ea)) ea = eta; }
-        for (var si = 0; si < polGroups[b].combos.length; si++) { var eta = polGroups[b].combos[si].eta; if (eta && (!eb || eta < eb)) eb = eta; }
-        if (!ea && !eb) return a.localeCompare(b);
-        if (!ea) return 1; if (!eb) return -1;
-        return ea.localeCompare(eb);
-      }).forEach(function(polKey) {
-        var pg = polGroups[polKey];
-        var pgFEU = pg.ft40_sum + pg.ft40rf_sum;
-        // Use ETB from the first combo of this POL
-        var polETB = '';
-        for (var pi = 0; pi < pg.combos.length; pi++) {
-          if (pg.combos[pi].eta) { polETB = pg.combos[pi].eta; break; }
-        }
-        var polId = escapeHtml(lane) + '|||' + escapeHtml(polKey);
-        tbody += '<tr class="detail-row hidden pol-total" data-parent="' + escapeHtml(lane) + '" data-pol="' + polId + '" onclick="togglePolTotal(this)">';
+        var cFEU = c.ft40_sum + c.ft40rf_sum;
+        tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
         tbody += '<td></td><td></td>';
-        tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(polKey) + ' TOTAL</b></td>';
-        tbody += '<td></td><td>' + (polETB || '-') + '</td>';
-        tbody += '<td class="num">' + pg.ft20_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + pg.ft40_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + pg.ft40rf_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num accent">' + pgFEU.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + pg.booking_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + (Math.ceil(pg.weight_sum/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-        var pgAvg = pg.booking_sum > 0 ? Math.ceil((pg.weight_sum/1000) / pg.booking_sum * 10) / 10 : 0;
-        tbody += '<td class="num">' + pgAvg.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+        tbody += '<td>' + escapeHtml(c.pol) + '</td>';
+        tbody += '<td>' + escapeHtml(c.del) + '</td>';
+        tbody += '<td>' + (c.etb || '-') + '</td>';
+        tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
+        var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
+        tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
         tbody += '</tr>';
         totalRows++;
-
-        pg.combos.forEach(function(c) {
-          var cFEU = c.ft40_sum + c.ft40rf_sum;
-          tbody += '<tr class="detail-row hidden pol-del" data-parent="' + escapeHtml(lane) + '" data-pol="' + polId + '">';
-          tbody += '<td></td><td></td>';
-          tbody += '<td>' + escapeHtml(c.pol) + '</td>';
-          tbody += '<td>' + escapeHtml(c.del) + '</td>';
-          tbody += '<td></td>';  // ETB shown on POL TOTAL row only
-          tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + (Math.ceil(c.weight_sum/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-          var avg = c.booking_sum > 0 ? Math.ceil((c.weight_sum/1000) / c.booking_sum * 10) / 10 : 0;
-          tbody += '<td class="num">' + avg.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-          tbody += '</tr>';
-          totalRows++;
-        });
       });
     });
   });
@@ -802,21 +701,7 @@ function toggleLane(row) {
   row.classList.toggle('collapsed', !row.classList.contains('expanded'));
   var lane = row.dataset.lane;
   var visible = row.classList.contains('expanded');
-  // Show CUL + POL TOTAL rows; keep DEL rows hidden by default
-  document.querySelectorAll('[data-parent="' + lane + '"]:not(.pol-del)').forEach(function(r) {
-    r.classList.toggle('hidden', !visible);
-  });
-  // When collapsing, also hide DEL rows and reset POL expanded state
-  if (!visible) {
-    document.querySelectorAll('[data-pol]').forEach(function(r) { r.classList.remove('expanded'); });
-  }
-}
-
-function togglePolTotal(row) {
-  row.classList.toggle('expanded');
-  var polId = row.dataset.pol;
-  var visible = row.classList.contains('expanded');
-  document.querySelectorAll('[data-pol="' + polId + '"].pol-del').forEach(function(r) {
+  document.querySelectorAll('[data-parent="' + lane + '"]').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
   });
 }
@@ -899,7 +784,7 @@ function updateDetail(data) {
       '<td class="num">' + r.ft40 + '</td>' +
       '<td class="num"><b>' + r.teu + '</b></td>' +
       '<td class="num">' + r.booking_cnt + '</td>' +
-      '<td class="num">' + (Math.ceil(r.container_weight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>' +
+      '<td class="num">' + r.container_weight.toLocaleString() + '</td>' +
       '<td>' + escapeHtml(r.shipper) + '</td>' +
       '<td>' + escapeHtml(r.forwarder) + '</td>' +
       '</tr>';
@@ -970,7 +855,6 @@ function saveFilterState() {
       etdTo: document.getElementById('etdTo').value,
       etbFrom: document.getElementById('etbFrom').value,
       etbTo: document.getElementById('etbTo').value,
-      sul: sulFilter,
       detailSearch: document.getElementById('detailSearch').value
     };
     localStorage.setItem('db_filter_state', JSON.stringify(state));
@@ -982,7 +866,6 @@ function restoreFilterState() {
     var raw = localStorage.getItem('db_filter_state');
     if (!raw) return false;
     var state = JSON.parse(raw);
-    console.log('[RESTORE] Saved state:', JSON.stringify(state).substring(0, 200));
 
     // Suppress ALL callbacks during restore
     window._isRestoring = true;
@@ -991,7 +874,6 @@ function restoreFilterState() {
     // Step 1: Restore Lane
     if (state.lane && state.lane.length && state.lane.length < LANE_LIST.length) {
       msLane.setSelected(state.lane);
-      console.log('[RESTORE] Lane set to:', state.lane);
     }
 
     // Step 2: Restore ETD & ETA
@@ -1000,47 +882,31 @@ function restoreFilterState() {
     if (state.etbFrom) document.getElementById('etbFrom').value = state.etbFrom;
     if (state.etbTo) document.getElementById('etbTo').value = state.etbTo;
 
-    // Restore SUL_YN filter
-    if (state.sul && state.sul !== 'ALL') {
-      sulFilter = state.sul;
-      document.querySelectorAll("#sulSeg button").forEach(function(b){
-        b.classList.toggle("active", b.dataset.sul === state.sul);
-      });
-    }
-
     // Step 3: Manually set saved CUL/POL/DEL/DIR selections BEFORE cascade
     if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
       msCul.setSelected(state.cul);
-      console.log('[RESTORE] CUL set to:', state.cul.slice(0,5), '... total:', state.cul.length);
     }
     if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) {
       msPol.setSelected(state.pol);
-      console.log('[RESTORE] POL set to:', state.pol);
     }
     if (state.del && state.del.length && state.del.length < DEL_LIST.length) {
       msDel.setSelected(state.del);
-      console.log('[RESTORE] DEL set to:', state.del);
     }
     if (state.dir && state.dir.length && state.dir.length < DIR_LIST.length) {
       msDir.setSelected(state.dir);
-      console.log('[RESTORE] DIR set to:', state.dir);
     }
 
     // Step 4: Cascade updates pools - updateItems will KEEP valid selections
-    console.log('[RESTORE] Before cascade - POL selected:', Array.from(msPol.getSelected()).slice(0,5), 'DEL selected:', Array.from(msDel.getSelected()).slice(0,5));
     onLaneChange(msLane.getSelected());
-    console.log('[RESTORE] After cascade - POL selected:', Array.from(msPol.getSelected()).slice(0,5), 'DEL selected:', Array.from(msDel.getSelected()).slice(0,5));
 
     // Step 5: Re-apply saved selections after cascade (in case updateItems defaulted to all)
     if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) {
       var polValid = state.pol.filter(function(v){ return msPol.getItems().indexOf(v) >= 0; });
       if (polValid.length > 0) { msPol.setSelected(polValid); }
-      console.log('[RESTORE] POL re-applied:', polValid.length, 'valid of', state.pol.length);
     }
     if (state.del && state.del.length && state.del.length < DEL_LIST.length) {
       var delValid = state.del.filter(function(v){ return msDel.getItems().indexOf(v) >= 0; });
       if (delValid.length > 0) { msDel.setSelected(delValid); }
-      console.log('[RESTORE] DEL re-applied:', delValid.length, 'valid of', state.del.length);
     }
     if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
       var culValid = state.cul.filter(function(v){ return msCul.getItems().indexOf(v) >= 0; });
@@ -1089,11 +955,6 @@ document.getElementById('resetAll').onclick = function() {
   etbFrom.value = ''; etbTo.value = '';
   if (GLOBAL_ETB_MIN) { etbFrom.min = GLOBAL_ETB_MIN; etbFrom.max = GLOBAL_ETB_MAX; }
   if (GLOBAL_ETB_MIN) { etbTo.min = GLOBAL_ETB_MIN; etbTo.max = GLOBAL_ETB_MAX; }
-  // Reset SUL_YN to ALL
-  sulFilter = "ALL";
-  document.querySelectorAll("#sulSeg button").forEach(function(b){
-    b.classList.toggle("active", b.dataset.sul === "ALL");
-  });
   refreshAll();
   saveFilterState();
 };
