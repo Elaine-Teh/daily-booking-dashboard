@@ -753,7 +753,7 @@ function buildSummary(data) {
       tbody += '<tr class="cul-row hidden" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(lane) + '|' + escapeHtml(ck) + '" onclick="toggleCul(this)">';
       tbody += '<td></td><td><span class="cul-expand">▶</span><b>' + escapeHtml(ck) + '</b></td>';
       tbody += '<td></td><td></td>';
-      tbody += '<td>' + culEtb + '</td>';
+      tbody += '<td style="white-space:nowrap">' + culEtb + '</td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
@@ -777,7 +777,7 @@ function buildSummary(data) {
         tbody += '<td></td><td></td>';
         tbody += '<td><span class="pol-expand">▶</span><b>' + escapeHtml(pk) + ' TOTAL</b></td>';
         tbody += '<td></td>';
-        tbody += '<td>' + polEtb + '</td>';
+        tbody += '<td style="white-space:nowrap">' + polEtb + '</td>';
         tbody += '<td class="num">' + g.ft20_sum.toLocaleString() + '</td>';
         tbody += '<td class="num">' + g.ft40_sum.toLocaleString() + '</td>';
         tbody += '<td class="num">' + g.ft40rf_sum.toLocaleString() + '</td>';
@@ -797,7 +797,7 @@ function buildSummary(data) {
           tbody += '<td></td><td></td>';
           tbody += '<td>' + escapeHtml(pk) + '</td>';
           tbody += '<td>' + escapeHtml(dk) + '</td>';
-          tbody += '<td>' + delEtb + '</td>';
+          tbody += '<td style="white-space:nowrap">' + delEtb + '</td>';
           tbody += '<td class="num">' + dg.ft20_sum.toLocaleString() + '</td>';
           tbody += '<td class="num">' + dg.ft40_sum.toLocaleString() + '</td>';
           tbody += '<td class="num">' + dg.ft40rf_sum.toLocaleString() + '</td>';
