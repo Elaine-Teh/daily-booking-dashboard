@@ -743,7 +743,7 @@ function buildSummary(data) {
         });
         var polFEU = polFT40 + polFT40RF;
 
-        tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
+        tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-parent="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
         tbody += '<td></td><td></td>';
         tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(pk) + '</b></td>';
         tbody += '<td></td>';
@@ -793,12 +793,15 @@ function toggleLane(row) {
   row.classList.toggle('collapsed', !row.classList.contains('expanded'));
   var lane = row.dataset.lane;
   var visible = row.classList.contains('expanded');
+  // Show/hide all child rows (CUL + POL)
   document.querySelectorAll('tr[data-parent="' + lane + '"]').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
-    if (!visible && r.classList.contains('pol-row')) {
-      r.classList.remove('expanded');
-      var cul = r.dataset.cul, pol = r.dataset.pol;
-      document.querySelectorAll('tr.detail-row[data-lane="' + lane + '"][data-cul="' + cul + '"][data-pol="' + pol + '"]').forEach(function(d) {
+    if (!visible) {
+      // Collapsing lane: also hide all detail-rows under this lane
+      if (r.classList.contains('pol-row')) {
+        r.classList.remove('expanded');
+      }
+      document.querySelectorAll('tr.detail-row[data-lane="' + lane + '"]').forEach(function(d) {
         d.classList.add('hidden');
       });
     }
