@@ -76,10 +76,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .summary-table .lane-row .expand-icon{display:inline-block;width:16px;text-align:center;transition:transform .2s}
 .summary-table .lane-row.expanded .expand-icon{transform:rotate(90deg)}
 .summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
-.summary-table .pol-total td{padding-left:46px;font-size:12px;background:#f7f9ff;font-weight:600;color:#0f3460}
-.summary-table .pol-total td:first-child{padding-left:46px}
-.summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
-.summary-table tr.detail-row.hidden,.summary-table tr.pol-total.hidden,.summary-table tr.cul-row.hidden{display:none}
+.summary-table .pol-row td{padding-left:46px;font-weight:600;font-size:12px;cursor:pointer;background:#f9fafc}
+.summary-table .pol-row .expand-icon{display:inline-block;width:14px;text-align:center;transition:transform .2s;font-size:10px}
+.summary-table .pol-row.expanded .expand-icon{transform:rotate(90deg)}
+.summary-table .detail-row td{padding-left:64px;font-size:12px;color:#555}
+.summary-table tr.detail-row.hidden,.summary-table tr.pol-row.hidden,.summary-table tr.cul-row.hidden{display:none}
 .summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-table .highlight{color:#0f3460;font-weight:600}
 
@@ -661,18 +662,15 @@ function buildSummary(data) {
   data.forEach(function(r) {
     var lk = r.lane || '(blank)';
     var ck = r.cul_code || '(blank)';
-    var comboKey = r.pol + '|||' + r.del_port;
+    var pk = r.pol || '(blank)';
     if (!groups[lk]) groups[lk] = {};
     if (!groups[lk][ck]) groups[lk][ck] = {};
-    if (!groups[lk][ck][comboKey]) {
-      groups[lk][ck][comboKey] = { pol: r.pol, del: r.del_port, eta: r.etb || '', booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0, op_teu_sum: 0 };
-    }
-    groups[lk][ck][comboKey].booking_sum += r.booking_cnt;
-    groups[lk][ck][comboKey].weight_sum += r.container_weight;
-    groups[lk][ck][comboKey].ft20_sum += r.ft20;
-    groups[lk][ck][comboKey].ft40_sum += r.ft40;
-    groups[lk][ck][comboKey].ft40rf_sum += r.ft40rf;
-    groups[lk][ck][comboKey].op_teu_sum += r.op_teu;
+    if (!groups[lk][ck][pk]) groups[lk][ck][pk] = [];
+    groups[lk][ck][pk].push({
+      pol: r.pol, del: r.del_port || '', etb: r.etb || '',
+      booking_sum: r.booking_cnt, weight_sum: r.container_weight,
+      ft20_sum: r.ft20, ft40_sum: r.ft40, ft40rf_sum: r.ft40rf, op_teu_sum: r.op_teu
+    });
   });
 
   var tbody = '';
@@ -682,20 +680,19 @@ function buildSummary(data) {
     var laneBooking = 0, laneWeight = 0, laneFT20 = 0, laneFT40 = 0, laneFT40RF = 0, laneOpTeu = 0;
     var culCodes = Object.keys(groups[lane]).sort();
     culCodes.forEach(function(ck) {
-      var combos = Object.values(groups[lane][ck]);
-      laneBooking += combos.reduce(function(s,v){return s+v.booking_sum},0);
-      laneWeight += combos.reduce(function(s,v){return s+v.weight_sum},0);
-      laneFT20 += combos.reduce(function(s,v){return s+v.ft20_sum},0);
-      laneFT40 += combos.reduce(function(s,v){return s+v.ft40_sum},0);
-      laneFT40RF += combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
-      laneOpTeu += combos.reduce(function(s,v){return s+v.op_teu_sum},0);
+      Object.keys(groups[lane][ck]).forEach(function(pk) {
+        groups[lane][ck][pk].forEach(function(d) {
+          laneBooking += d.booking_sum; laneWeight += d.weight_sum; laneFT20 += d.ft20_sum;
+          laneFT40 += d.ft40_sum; laneFT40RF += d.ft40rf_sum; laneOpTeu += d.op_teu_sum;
+        });
+      });
     });
 
     var laneFEU = laneFT40 + laneFT40RF;
-
     tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
     tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<td></td><td></td><td></td><td></td>';
+    tbody += '<td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
@@ -706,13 +703,14 @@ function buildSummary(data) {
     tbody += '</tr>';
 
     culCodes.forEach(function(ck) {
-      var combos = Object.values(groups[lane][ck]).sort(function(a,b){ return a.pol.localeCompare(b.pol); });
-      var culBooking = combos.reduce(function(s,v){return s+v.booking_sum},0);
-      var culWeight = combos.reduce(function(s,v){return s+v.weight_sum},0);
-      var culFT20 = combos.reduce(function(s,v){return s+v.ft20_sum},0);
-      var culFT40 = combos.reduce(function(s,v){return s+v.ft40_sum},0);
-      var culFT40RF = combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
-      var culOpTeu = combos.reduce(function(s,v){return s+v.op_teu_sum},0);
+      var pols = Object.keys(groups[lane][ck]).sort();
+      var culBooking = 0, culWeight = 0, culFT20 = 0, culFT40 = 0, culFT40RF = 0, culOpTeu = 0;
+      pols.forEach(function(pk) {
+        groups[lane][ck][pk].forEach(function(d) {
+          culBooking += d.booking_sum; culWeight += d.weight_sum; culFT20 += d.ft20_sum;
+          culFT40 += d.ft40_sum; culFT40RF += d.ft40rf_sum; culOpTeu += d.op_teu_sum;
+        });
+      });
       var culFEU = culFT40 + culFT40RF;
 
       tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
@@ -729,52 +727,55 @@ function buildSummary(data) {
       tbody += '</tr>';
       totalRows++;
 
-      // Group by POL, add detail rows and POL TOTAL rows
-      var pols = [];
-      var polMap = {};
-      combos.forEach(function(c) {
-        if (!polMap[c.pol]) { polMap[c.pol] = []; pols.push(c.pol); }
-        polMap[c.pol].push(c);
-      });
-      pols.forEach(function(pol) {
-        var polRows = polMap[pol];
+      pols.forEach(function(pk) {
+        var details = groups[lane][ck][pk].slice().sort(function(a,b){ return a.del.localeCompare(b.del); });
         var polBooking = 0, polWeight = 0, polFT20 = 0, polFT40 = 0, polFT40RF = 0, polOpTeu = 0;
-        polRows.forEach(function(c) {
-          var cFEU = c.ft40_sum + c.ft40rf_sum;
-          tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
-          tbody += '<td></td><td></td>';
-          tbody += '<td>' + escapeHtml(c.pol) + '</td>';
-          tbody += '<td>' + escapeHtml(c.del) + '</td>';
-          tbody += '<td>' + (c.etb || '-') + '</td>';
-          tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.op_teu_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
-          var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
-          tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
-          tbody += '</tr>';
-          totalRows++;
-          polBooking += c.booking_sum; polWeight += c.weight_sum; polFT20 += c.ft20_sum;
-          polFT40 += c.ft40_sum; polFT40RF += c.ft40rf_sum; polOpTeu += c.op_teu_sum;
+        var etbDates = [];
+        details.forEach(function(d) { if (d.etb) etbDates.push(d.etb); });
+        var etbDisplay = '-';
+        if (etbDates.length > 0) {
+          var sortedEtb = etbDates.slice().sort();
+          etbDisplay = sortedEtb[0] === sortedEtb[sortedEtb.length-1] ? sortedEtb[0] : sortedEtb[0] + ' ~ ' + sortedEtb[sortedEtb.length-1];
+        }
+        details.forEach(function(d) {
+          polBooking += d.booking_sum; polWeight += d.weight_sum; polFT20 += d.ft20_sum;
+          polFT40 += d.ft40_sum; polFT40RF += d.ft40rf_sum; polOpTeu += d.op_teu_sum;
         });
         var polFEU = polFT40 + polFT40RF;
-        tbody += '<tr class="pol-total hidden" data-parent="' + escapeHtml(lane) + '">';
+
+        tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
         tbody += '<td></td><td></td>';
-        tbody += '<td class="num"><b>' + escapeHtml(pol) + ' TOTAL</b></td>';
-        tbody += '<td></td><td></td>'; // DEL, ETB empty
-        tbody += '<td class="num"><b>' + polFT20.toLocaleString() + '</b></td>';
-        tbody += '<td class="num"><b>' + polFT40.toLocaleString() + '</b></td>';
-        tbody += '<td class="num"><b>' + polFT40RF.toLocaleString() + '</b></td>';
-        tbody += '<td class="num accent"><b>' + polFEU.toLocaleString() + '</b></td>';
-        tbody += '<td class="num"><b>' + polBooking.toLocaleString() + '</b></td>';
-        tbody += '<td class="num"><b>' + polOpTeu.toLocaleString() + '</b></td>';
-        tbody += '<td class="num"><b>' + polWeight.toLocaleString() + '</b></td>';
-        tbody += '<td class="num"><b>' + (polBooking > 0 ? Math.round(polWeight/polBooking).toLocaleString() : '0') + '</b></td>';
+        tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(pk) + '</b></td>';
+        tbody += '<td></td>';
+        tbody += '<td>' + etbDisplay + '</td>';
+        tbody += '<td class="num">' + polFT20.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polFT40.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polFT40RF.toLocaleString() + '</td>';
+        tbody += '<td class="num accent">' + polFEU.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polBooking.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polOpTeu.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polWeight.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + (polBooking > 0 ? Math.round(polWeight/polBooking).toLocaleString() : '0') + '</td>';
         tbody += '</tr>';
         totalRows++;
+
+        details.forEach(function(d) {
+          var dFEU = d.ft40_sum + d.ft40rf_sum;
+          tbody += '<tr class="detail-row hidden" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
+          tbody += '<td></td><td></td><td></td>';
+          tbody += '<td>' + escapeHtml(d.del) + '</td>';
+          tbody += '<td>' + (d.etb || '-') + '</td>';
+          tbody += '<td class="num">' + d.ft20_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.ft40_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.ft40rf_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num accent">' + dFEU.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.booking_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.op_teu_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.weight_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + (d.booking_sum > 0 ? Math.round(d.weight_sum/d.booking_sum).toLocaleString() : '0') + '</td>';
+          tbody += '</tr>';
+          totalRows++;
+        });
       });
     });
   });
@@ -792,7 +793,26 @@ function toggleLane(row) {
   row.classList.toggle('collapsed', !row.classList.contains('expanded'));
   var lane = row.dataset.lane;
   var visible = row.classList.contains('expanded');
-  document.querySelectorAll('[data-parent="' + lane + '"]').forEach(function(r) {
+  document.querySelectorAll('tr[data-parent="' + lane + '"]').forEach(function(r) {
+    r.classList.toggle('hidden', !visible);
+    if (!visible && r.classList.contains('pol-row')) {
+      r.classList.remove('expanded');
+      var cul = r.dataset.cul, pol = r.dataset.pol;
+      document.querySelectorAll('tr.detail-row[data-lane="' + lane + '"][data-cul="' + cul + '"][data-pol="' + pol + '"]').forEach(function(d) {
+        d.classList.add('hidden');
+      });
+    }
+  });
+}
+
+function togglePol(row) {
+  row.classList.toggle('expanded');
+  row.classList.toggle('collapsed', !row.classList.contains('expanded'));
+  var lane = row.dataset.lane;
+  var cul = row.dataset.cul;
+  var pol = row.dataset.pol;
+  var visible = row.classList.contains('expanded');
+  document.querySelectorAll('tr.detail-row[data-lane="' + lane + '"][data-cul="' + cul + '"][data-pol="' + pol + '"]').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
   });
 }
