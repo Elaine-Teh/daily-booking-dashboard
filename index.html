@@ -78,11 +78,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 
 .summary-table tr.hidden{display:none}
-.summary-table .pol-row{background:#f0f4ff;font-size:12px}
-.summary-table .pol-row td:first-child{padding-left:28px}
+.summary-table .cul-row{background:#fff;font-weight:600;cursor:pointer}
+.summary-table .cul-row td:first-child{padding-left:28px}
+.summary-table .cul-row.expanded .expand-icon{transform:rotate(90deg)}
+.summary-table .pol-row{background:#f9fbff;font-size:12px;cursor:pointer}
+.summary-table .pol-row td:first-child{padding-left:46px}
 .summary-table .pol-row.expanded .expand-icon{transform:rotate(90deg)}
 .summary-table .detail-row{background:#fafafa;font-size:12px}
-.summary-table .detail-row td:first-child{padding-left:46px}
+.summary-table .detail-row td:first-child{padding-left:64px}
 .summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-table .highlight{color:#0f3460;font-weight:600}
 
@@ -661,7 +664,7 @@ function updateKPIs(data) {
 }
 
 // ============ SUMMARY TABLE ============
-// Structure: (Lane + CUL) -> POL -> DEL (three-level collapsible)
+// Structure: Lane -> CUL -> POL -> DEL (four-level collapsible tree)
 function buildSummary(data) {
   // Aggregate by (Lane, CUL, POL, DEL, ETB)
   var groups = {};
@@ -709,11 +712,22 @@ function buildSummary(data) {
     });
     var laneFEU = laneFT40 + laneFT40RF;
 
-    // One collapsible top row per (Lane, CUL) group
+    // Lane row
+    tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
+    tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
+    tbody += '<td></td><td></td><td></td><td></td>';
+    tbody += '<td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + laneBooking.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + laneOpTeu.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + formatWeight(laneWeight) + '</td>';
+    tbody += '<td class="num highlight">' + (laneBooking > 0 ? formatWeight(laneWeight/laneBooking) : '0') + '</td>';
+    tbody += '</tr>';
+
     culCodes.forEach(function(ck) {
       var pols = Object.keys(groups[lane][ck]).sort();
-
-      // CUL total
       var culBooking = 0, culWeight = 0, culFT20 = 0, culFT40 = 0, culFT40RF = 0, culOpTeu = 0;
       pols.forEach(function(pk) {
         Object.keys(groups[lane][ck][pk]).forEach(function(key) {
@@ -724,21 +738,20 @@ function buildSummary(data) {
       });
       var culFEU = culFT40 + culFT40RF;
 
-      // Parent key = lane|cul (used by toggleLane)
-      var parentKey = lane + '|' + ck;
-      tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-parent-key="' + escapeHtml(parentKey) + '" data-lane="' + escapeHtml(lane) + '">';
-      tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-      tbody += '<td><b>' + escapeHtml(ck) + '</b></td>';
+      // CUL row (hidden by default, child of lane)
+      tbody += '<tr class="cul-row hidden" onclick="toggleCul(this)" data-parent="' + escapeHtml(lane) + '" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '">';
+      tbody += '<td></td><td><span class="expand-icon">▶</span> <b>' + escapeHtml(ck) + '</b></td>';
       tbody += '<td></td><td></td><td></td>';
-      tbody += '<td class="num highlight">' + culFT20.toLocaleString() + '</td>';
-      tbody += '<td class="num highlight">' + culFT40.toLocaleString() + '</td>';
-      tbody += '<td class="num highlight">' + culFT40RF.toLocaleString() + '</td>';
-      tbody += '<td class="num highlight accent">' + culFEU.toLocaleString() + '</td>';
-      tbody += '<td class="num highlight">' + culBooking.toLocaleString() + '</td>';
-      tbody += '<td class="num highlight">' + culOpTeu.toLocaleString() + '</td>';
-      tbody += '<td class="num highlight">' + formatWeight(culWeight) + '</td>';
-      tbody += '<td class="num highlight">' + (culBooking > 0 ? formatWeight(culWeight/culBooking) : '0') + '</td>';
+      tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
+      tbody += '<td class="num accent">' + culFEU.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + culBooking.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + culOpTeu.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + formatWeight(culWeight) + '</td>';
+      tbody += '<td class="num">' + (culBooking > 0 ? formatWeight(culWeight/culBooking) : '0') + '</td>';
       tbody += '</tr>';
+      totalRows++;
 
       // POL rows under this CUL
       pols.forEach(function(pk) {
@@ -759,8 +772,8 @@ function buildSummary(data) {
           etbDisplay = sortedEtb[0] === sortedEtb[sortedEtb.length-1] ? sortedEtb[0] : sortedEtb[0] + ' ~ ' + sortedEtb[sortedEtb.length-1];
         }
 
-        // POL row: hidden by default, shown when parent (lane|cul) is expanded
-        tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-parent-key="' + escapeHtml(parentKey) + '" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
+        // POL row (hidden by default, child of cul)
+        tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-parent="' + escapeHtml(lane + '|' + ck) + '" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
         tbody += '<td></td><td></td>';
         tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(pk) + '</b></td>';
         tbody += '<td></td>';
@@ -779,7 +792,7 @@ function buildSummary(data) {
         // DEL detail rows
         details.forEach(function(d) {
           var dFEU = d.ft40_sum + d.ft40rf_sum;
-          tbody += '<tr class="detail-row hidden" data-parent-key="' + escapeHtml(parentKey) + '" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
+          tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane + '|' + ck + '|' + pk) + '" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
           tbody += '<td></td><td></td><td></td>';
           tbody += '<td>' + escapeHtml(d.del) + '</td>';
           tbody += '<td></td>';
@@ -809,29 +822,47 @@ function buildSummary(data) {
 function toggleLane(row) {
   row.classList.toggle('expanded');
   row.classList.toggle('collapsed', !row.classList.contains('expanded'));
-  var pk = row.dataset.parentKey;
+  var lane = row.dataset.lane;
   var visible = row.classList.contains('expanded');
-  // Show/hide all POL rows under this (lane, cul)
-  document.querySelectorAll('tr[data-parent-key="' + pk + '"]').forEach(function(r) {
+  // Show/hide CUL rows under this lane
+  document.querySelectorAll('tr.cul-row[data-parent="' + lane + '"]').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
-    if (!visible && r.classList.contains('pol-row')) {
+    if (!visible) {
+      // Collapsing lane: collapse all CULs and hide their descendants
       r.classList.remove('expanded');
+      var cul = r.dataset.cul;
+      document.querySelectorAll('tr.pol-row[data-lane="' + lane + '"][data-cul="' + cul + '"], tr.detail-row[data-lane="' + lane + '"][data-cul="' + cul + '"]').forEach(function(child) {
+        child.classList.add('hidden');
+      });
     }
   });
-  // When collapsing lane|cul, also hide all detail rows under this group
-  if (!visible) {
-    document.querySelectorAll('tr.detail-row[data-parent-key="' + pk + '"]').forEach(function(r) {
-      r.classList.add('hidden');
-    });
-  }
+}
+
+function toggleCul(row) {
+  row.classList.toggle('expanded');
+  row.classList.toggle('collapsed', !row.classList.contains('expanded'));
+  var lane = row.dataset.lane, cul = row.dataset.cul;
+  var visible = row.classList.contains('expanded');
+  // Show/hide POL rows under this CUL
+  document.querySelectorAll('tr.pol-row[data-lane="' + lane + '"][data-cul="' + cul + '"]').forEach(function(r) {
+    r.classList.toggle('hidden', !visible);
+    if (!visible) {
+      // Collapsing CUL: collapse all POLs and hide their details
+      r.classList.remove('expanded');
+      var pol = r.dataset.pol;
+      document.querySelectorAll('tr.detail-row[data-lane="' + lane + '"][data-cul="' + cul + '"][data-pol="' + pol + '"]').forEach(function(child) {
+        child.classList.add('hidden');
+      });
+    }
+  });
 }
 
 function togglePol(row) {
   row.classList.toggle('expanded');
   row.classList.toggle('collapsed', !row.classList.contains('expanded'));
-  var lane = row.dataset.lane, ck = row.dataset.cul, pk = row.dataset.pol;
+  var lane = row.dataset.lane, cul = row.dataset.cul, pol = row.dataset.pol;
   var visible = row.classList.contains('expanded');
-  document.querySelectorAll('tr.detail-row[data-lane="' + lane + '"][data-cul="' + ck + '"][data-pol="' + pk + '"]').forEach(function(r) {
+  document.querySelectorAll('tr.detail-row[data-lane="' + lane + '"][data-cul="' + cul + '"][data-pol="' + pol + '"]').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
   });
 }
