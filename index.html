@@ -658,19 +658,31 @@ function updateKPIs(data) {
 
 // ============ SUMMARY TABLE ============
 function buildSummary(data) {
+  // Aggregate detail level by (Lane, CUL, POL, DEL, ETB) to avoid duplicate breakdown lines
   var groups = {};
   data.forEach(function(r) {
     var lk = r.lane || '(blank)';
     var ck = r.cul_code || '(blank)';
     var pk = r.pol || '(blank)';
+    var dk = r.del_port || '(blank)';
+    var ek = r.etb || '';
     if (!groups[lk]) groups[lk] = {};
     if (!groups[lk][ck]) groups[lk][ck] = {};
-    if (!groups[lk][ck][pk]) groups[lk][ck][pk] = [];
-    groups[lk][ck][pk].push({
-      pol: r.pol, del: r.del_port || '', etb: r.etb || '',
-      booking_sum: r.booking_cnt, weight_sum: r.container_weight,
-      ft20_sum: r.ft20, ft40_sum: r.ft40, ft40rf_sum: r.ft40rf, op_teu_sum: r.op_teu
-    });
+    if (!groups[lk][ck][pk]) groups[lk][ck][pk] = {};
+    var key = dk + '|' + ek;
+    if (!groups[lk][ck][pk][key]) {
+      groups[lk][ck][pk][key] = {
+        pol: r.pol, del: r.del_port || '', etb: r.etb || '',
+        booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0, op_teu_sum: 0
+      };
+    }
+    var g = groups[lk][ck][pk][key];
+    g.booking_sum += r.booking_cnt;
+    g.weight_sum += r.container_weight;
+    g.ft20_sum += r.ft20;
+    g.ft40_sum += r.ft40;
+    g.ft40rf_sum += r.ft40rf;
+    g.op_teu_sum += r.op_teu;
   });
 
   var tbody = '';
@@ -681,7 +693,8 @@ function buildSummary(data) {
     var culCodes = Object.keys(groups[lane]).sort();
     culCodes.forEach(function(ck) {
       Object.keys(groups[lane][ck]).forEach(function(pk) {
-        groups[lane][ck][pk].forEach(function(d) {
+        Object.keys(groups[lane][ck][pk]).forEach(function(key) {
+          var d = groups[lane][ck][pk][key];
           laneBooking += d.booking_sum; laneWeight += d.weight_sum; laneFT20 += d.ft20_sum;
           laneFT40 += d.ft40_sum; laneFT40RF += d.ft40rf_sum; laneOpTeu += d.op_teu_sum;
         });
@@ -706,7 +719,8 @@ function buildSummary(data) {
       var pols = Object.keys(groups[lane][ck]).sort();
       var culBooking = 0, culWeight = 0, culFT20 = 0, culFT40 = 0, culFT40RF = 0, culOpTeu = 0;
       pols.forEach(function(pk) {
-        groups[lane][ck][pk].forEach(function(d) {
+        Object.keys(groups[lane][ck][pk]).forEach(function(key) {
+          var d = groups[lane][ck][pk][key];
           culBooking += d.booking_sum; culWeight += d.weight_sum; culFT20 += d.ft20_sum;
           culFT40 += d.ft40_sum; culFT40RF += d.ft40rf_sum; culOpTeu += d.op_teu_sum;
         });
@@ -728,7 +742,8 @@ function buildSummary(data) {
       totalRows++;
 
       pols.forEach(function(pk) {
-        var details = groups[lane][ck][pk].slice().sort(function(a,b){ return a.del.localeCompare(b.del); });
+        var details = Object.keys(groups[lane][ck][pk]).map(function(k){ return groups[lane][ck][pk][k]; })
+          .sort(function(a,b){ return a.del.localeCompare(b.del); });
         var polBooking = 0, polWeight = 0, polFT20 = 0, polFT40 = 0, polFT40RF = 0, polOpTeu = 0;
         var etbDates = [];
         details.forEach(function(d) { if (d.etb) etbDates.push(d.etb); });
