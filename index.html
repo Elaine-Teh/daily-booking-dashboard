@@ -51,15 +51,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .etd-filter input[type=date]:focus,.etb-filter input[type=date]:focus{border-color:#0f3460}
 .etd-filter .etd-sep,.etb-filter .etd-sep{color:#999;font-size:13px}
 
-/* SUL_YN Segmented Filter */
-.sul-filter{display:flex;align-items:center;gap:6px}
-.sul-filter label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
-.sul-seg{display:flex;border-radius:6px;overflow:hidden;border:1px solid #ddd}
-.sul-seg button{padding:5px 14px;font-size:12px;font-weight:600;border:none;background:#f5f6fa;color:#666;cursor:pointer;transition:.15s;border-right:1px solid #ddd}
-.sul-seg button:last-child{border-right:none}
-.sul-seg button.active{background:#0f3460;color:#fff}
-.sul-seg button:hover:not(.active){background:#e8f0fe}
-
 /* KPI Cards */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:14px}
 .kpi-card{background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.08);text-align:center}
@@ -87,12 +78,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
 .summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
 .summary-table tr.detail-row.hidden{display:none}
-.summary-table tr.detail-row.pol-total td{background:#e8f0fe;font-weight:700;color:#0f3460;border-bottom:2px solid #c5d5f0;cursor:pointer}
-.summary-table tr.detail-row.pol-total td.num{color:#0f3460;font-weight:700}
-.summary-table tr.detail-row.pol-total td.nest{color:#0f3460;font-weight:700}
-.summary-table .pol-total .expand-icon{display:inline-block;width:14px;text-align:center;transition:transform .2s;font-size:11px}
-.summary-table .pol-total.expanded .expand-icon{transform:rotate(90deg)}
-.summary-table tr.detail-row.pol-del.hidden{display:none}
 .summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-table .highlight{color:#0f3460;font-weight:600}
 
@@ -216,19 +201,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <span class="etd-sep">~</span>
       <input type="date" id="etdTo" title="ETD To">
     </div>
-    <div class="etd-filter">
-      <label>POL ETB</label>
-      <input type="date" id="etbFrom" title="POL ETB From">
+    <div class="eta-filter">
+      <label>ETB</label>
+      <input type="date" id="etbFrom" title="ETA From">
       <span class="etd-sep">~</span>
-      <input type="date" id="etbTo" title="POL ETB To">
-    </div>
-    <div class="sul-filter">
-      <label>SUL_YN</label>
-      <div class="sul-seg" id="sulSeg">
-        <button data-sul="ALL" class="active">ALL</button>
-        <button data-sul="SUL">SUL</button>
-        <button data-sul="CUL">CUL</button>
-      </div>
+      <input type="date" id="etbTo" title="ETA To">
     </div>
     <span class="filter-clear" id="resetAll">Reset All</span>
   </div>
@@ -242,6 +219,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="kpi-card"><div class="kpi-value" id="kpiBooking">0</div><div class="kpi-label">Booking Count</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpiWeight">0</div><div class="kpi-label">Container Weight</div></div>
   </div>
+  <div id="debugPanel" style="display:none;background:#fff3cd;color:#856404;padding:8px 12px;border-radius:6px;margin:8px 0;font-size:12px;font-family:monospace;"></div>
+
   <!-- SUMMARY TABLE -->
   <div class="summary-section">
     <h2>📋 Summary by Trunk Lane & CUL Code <span class="badge" id="summaryCount"></span></h2>
@@ -351,6 +330,21 @@ var msLane, msPol, msDel, msCul, msDir;
       LANE_ETD_MAP = payload.lane_etd_map || {};
       LANE_ETB_MAP = payload.lane_etb_map || {};
 
+      // Data integrity check - also show on screen
+      var checkMsg = '';
+      checkMsg += 'Records: ' + ALL_DATA.length + ' (expected: ' + (payload.total_records || '?') + ')<br>';
+      checkMsg += 'Generated: ' + (payload.generated_at || '?') + '<br>';
+      (function() {
+        var bzcf = ALL_DATA.filter(function(r) { return r.cul_code === 'BZCF2621W'; });
+        if (bzcf.length > 0) {
+          var bzcf20 = bzcf.reduce(function(s,r){return s+r.ft20},0);
+          checkMsg += 'BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf20;
+          console.log('[Data Check] BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf20);
+        }
+      })();
+      var debugEl = document.getElementById('debugPanel');
+      if (debugEl) { debugEl.innerHTML = '<b>Data Check:</b> ' + checkMsg; debugEl.style.display = 'block'; }
+
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
       document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
@@ -373,17 +367,6 @@ var msLane, msPol, msDel, msCul, msDir;
       console.error('Data load error:', err);
     });
 })();
-
-// SUL_YN FILTER
-var sulFilter = "ALL";
-function setSulFilter(val, btn) {
-  sulFilter = val;
-  document.querySelectorAll("#sulSeg button").forEach(function(b){b.classList.remove("active")});
-  btn.classList.add("active"); refreshAll(); saveFilterState();
-}
-document.querySelectorAll("#sulSeg button").forEach(function(b){
-  b.onclick = function(){ setSulFilter(this.dataset.sul, this); };
-});
 
 // ============ MULTI-SELECT ENGINE ============
 function buildMultiSelect(id, items, onChange, label) {
@@ -486,23 +469,57 @@ function getFilteredData() {
   var etbFrom = document.getElementById('etbFrom').value;
   var etbTo = document.getElementById('etbTo').value;
 
+  // Debug logging to console
+  console.log('=== Filter Debug ===');
+  console.log('laneSel size:', laneSel.size, 'sample:', Array.from(laneSel).slice(0,3));
+  console.log('culSel size:', culSel.size, 'sample:', Array.from(culSel).slice(0,3));
+  console.log('polSel size:', polSel.size, 'sample:', Array.from(polSel).slice(0,3));
+  console.log('delSel size:', delSel.size, 'sample:', Array.from(delSel).slice(0,3));
+  console.log('dirSel size:', dirSel.size, 'sample:', Array.from(dirSel).slice(0,4));
+  console.log('etdFrom:', etdFrom, 'etdTo:', etdTo);
+  console.log('etbFrom:', etbFrom, 'etbTo:', etbTo);
+  console.log('Total ALL_DATA:', ALL_DATA.length);
+
+  var lanePass = 0, culPass = 0, polPass = 0, delPass = 0, dirPass = 0, etdPass = 0, etaPass = 0, totalPass = 0;
+  // BZCF2621W specific debug
+  var bzcfLost = {lane:0, pol:0, del:0, cul:0, dir:0, etd:0, etb:0, pass:0};
   var result = ALL_DATA.filter(function(r) {
-    if (!laneSel.has(r.lane)) return false;
-    if (!polSel.has(r.pol)) return false;
-    if (!delSel.has(r.del_port)) return false;
-    if (!culSel.has(r.cul_code)) return false;
+    var isBzcf = (r.cul_code === 'BZCF2621W');
+    if (!laneSel.has(r.lane)) { if (isBzcf) bzcfLost.lane++; return false; } else { lanePass++; }
+    if (!polSel.has(r.pol)) { if (isBzcf) bzcfLost.pol++; return false; } else { polPass++; }
+    if (!delSel.has(r.del_port)) { if (isBzcf) bzcfLost.del++; return false; } else { delPass++; }
+    if (!culSel.has(r.cul_code)) { if (isBzcf) bzcfLost.cul++; return false; } else { culPass++; }
     var recDir = r.direction || '';
-    if (recDir && !dirSel.has(recDir)) return false;
-    // SUL_YN filter
-    if (sulFilter === 'SUL' && r.sul_yn !== 'Y') return false;
-    if (sulFilter === 'CUL' && r.sul_yn !== 'N') return false;
-    if (etdFrom && r.etd && r.etd < etdFrom) return false;
-    if (etdTo && r.etd && r.etd > etdTo) return false;
-    // Per-record ETB check: only keep records whose ETB is within the selected range
-    if (etbFrom && r.etb && r.etb < etbFrom) return false;
-    if (etbTo && r.etb && r.etb > etbTo) return false;
+    if (recDir && !dirSel.has(recDir)) { if (isBzcf) bzcfLost.dir++; return false; } else { dirPass++; }
+    if (etdFrom && r.etd && r.etd < etdFrom) { if (isBzcf) bzcfLost.etd++; return false; } else { etdPass++; }
+    if (etdTo && r.etd && r.etd > etdTo) { if (isBzcf) bzcfLost.etd++; return false; }
+    if (etbFrom && r.etb && r.etb < etbFrom) { if (isBzcf) bzcfLost.eta++; return false; } else { etaPass++; }
+    if (etbTo && r.etb && r.etb > etbTo) { if (isBzcf) bzcfLost.eta++; return false; }
+    if (isBzcf) bzcfLost.pass++;
+    totalPass++;
     return true;
   });
+  if (bzcfLost.pass > 0 || bzcfLost.lane > 0 || bzcfLost.pol > 0 || bzcfLost.del > 0 || bzcfLost.dir > 0 || bzcfLost.etd > 0 || bzcfLost.eta > 0) {
+    console.log('[BZCF2621W] Total in raw:', ALL_DATA.filter(function(r){return r.cul_code==='BZCF2621W'}).length);
+    console.log('[BZCF2621W] Filtered: lane=', bzcfLost.lane, 'pol=', bzcfLost.pol, 'del=', bzcfLost.del, 'cul=', bzcfLost.cul, 'dir=', bzcfLost.dir, 'etd=', bzcfLost.etd, 'eta=', bzcfLost.eta, 'PASS=', bzcfLost.pass);
+  }
+
+  console.log('After lane filter:', lanePass);
+  console.log('After pol filter:', polPass);
+  console.log('After del filter:', delPass);
+  console.log('After cul filter:', culPass);
+  console.log('After dir filter:', dirPass);
+  console.log('After etd filter:', etdPass);
+  console.log('After eta filter:', etaPass);
+  console.log('Final result:', totalPass);
+  console.log('====================');
+
+  // Inline debug panel update
+  var debugEl = document.getElementById('debugPanel');
+  if (debugEl) {
+    debugEl.innerHTML = '<b>Debug:</b> lane=' + lanePass + ' pol=' + polPass + ' del=' + delPass + ' cul=' + culPass + ' dir=' + dirPass + ' etd=' + etdPass + ' eta=' + etaPass + ' <b style="color:#0f3460">final=' + totalPass + '</b>';
+    debugEl.style.display = 'block';
+  }
 
   return result;
 }
@@ -536,25 +553,15 @@ function cascadeFilters() {
     return;
   }
 
-  // Filter ALL_DATA by current Lane + ETD selection, with CUL-level ETB
+  // Filter ALL_DATA by current Lane + ETD selection
   var culPool = [], polPool = [], delPool = [];
   var culSet = {}, polSet = {}, delSet = {};
-
-  // Pre-scan for ETB: which CULs have in-range ETB
-  var cInRangeCuls = {};
-  if (!allETA) {
-    ALL_DATA.forEach(function(r) {
-      if (r.etb && (!etbFrom || r.etb >= etbFrom) && (!etbTo || r.etb <= etbTo)) {
-        cInRangeCuls[r.cul_code] = true;
-      }
-    });
-  }
-
   ALL_DATA.forEach(function(r) {
     if (!allLanes && !laneSel.has(r.lane)) return;
     if (etdFrom && r.etd < etdFrom) return;
     if (etdTo && r.etd > etdTo) return;
-    if (!allETA && !cInRangeCuls[r.cul_code]) return;
+    if (etbFrom && r.etb && r.etb < etbFrom) return;
+    if (etbTo && r.etb && r.etb > etbTo) return;
     if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
     if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
     if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
@@ -641,8 +648,8 @@ function updateKPIs(data) {
   var tteu = data.reduce(function(s,r){return s+r.teu},0);
   document.getElementById('kpiTeu').textContent = tteu.toLocaleString();
   document.getElementById('kpiBooking').textContent = data.length.toLocaleString();
-  var tw = Math.ceil(data.reduce(function(s,r){return s+r.container_weight},0)/1000*10)/10;
-  document.getElementById('kpiWeight').textContent = tw.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1});
+  var tw = data.reduce(function(s,r){return s+r.container_weight},0);
+  document.getElementById('kpiWeight').textContent = tw.toLocaleString();
 }
 
 // ============ SUMMARY TABLE ============
@@ -683,14 +690,13 @@ function buildSummary(data) {
 
     tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
     tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneBooking.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + (Math.ceil(laneWeight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-    tbody += '<td class="num highlight">' + (laneBooking > 0 ? (Math.ceil((laneWeight/1000)/laneBooking*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) : '0.0') + '</td>';
-
+    tbody += '<td class="num highlight">' + laneWeight.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + (laneBooking > 0 ? Math.round(laneWeight/laneBooking).toLocaleString() : '0') + '</td>';
     tbody += '</tr>';
 
     culCodes.forEach(function(ck) {
@@ -704,79 +710,34 @@ function buildSummary(data) {
 
       tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
       tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
-      tbody += '<td></td><td></td><td></td>';
+      tbody += '<td></td><td></td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
       tbody += '<td class="num accent">' + culFEU.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culBooking.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + (Math.ceil(culWeight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-      tbody += '<td class="num">' + (culBooking > 0 ? (Math.ceil((culWeight/1000)/culBooking*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) : '0.0') + '</td>';
-
+      tbody += '<td class="num">' + culWeight.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + (culBooking > 0 ? Math.round(culWeight/culBooking).toLocaleString() : '0') + '</td>';
       tbody += '</tr>';
       totalRows++;
 
-      // Group combos by POL for POL TOTAL row
-      var polGroups = {};
       combos.forEach(function(c) {
-        if (!polGroups[c.pol]) polGroups[c.pol] = { combos: [], booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
-        polGroups[c.pol].combos.push(c);
-        polGroups[c.pol].booking_sum += c.booking_sum;
-        polGroups[c.pol].weight_sum += c.weight_sum;
-        polGroups[c.pol].ft20_sum += c.ft20_sum;
-        polGroups[c.pol].ft40_sum += c.ft40_sum;
-        polGroups[c.pol].ft40rf_sum += c.ft40rf_sum;
-      });
-
-      Object.keys(polGroups).sort(function(a, b) {
-        var ea = '', eb = '';
-        for (var si = 0; si < polGroups[a].combos.length; si++) { var eta = polGroups[a].combos[si].eta; if (eta && (!ea || eta < ea)) ea = eta; }
-        for (var si = 0; si < polGroups[b].combos.length; si++) { var eta = polGroups[b].combos[si].eta; if (eta && (!eb || eta < eb)) eb = eta; }
-        if (!ea && !eb) return a.localeCompare(b);
-        if (!ea) return 1; if (!eb) return -1;
-        return ea.localeCompare(eb);
-      }).forEach(function(polKey) {
-        var pg = polGroups[polKey];
-        var pgFEU = pg.ft40_sum + pg.ft40rf_sum;
-        // Use ETB from the first combo of this POL
-        var polETB = '';
-        for (var pi = 0; pi < pg.combos.length; pi++) {
-          if (pg.combos[pi].eta) { polETB = pg.combos[pi].eta; break; }
-        }
-        var polId = escapeHtml(lane) + '|||' + escapeHtml(polKey);
-        tbody += '<tr class="detail-row hidden pol-total" data-parent="' + escapeHtml(lane) + '" data-pol="' + polId + '" onclick="togglePolTotal(this)">';
+        var cFEU = c.ft40_sum + c.ft40rf_sum;
+        tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
         tbody += '<td></td><td></td>';
-        tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(polKey) + ' TOTAL</b></td>';
-        tbody += '<td></td><td>' + (polETB || '-') + '</td>';
-        tbody += '<td class="num">' + pg.ft20_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + pg.ft40_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + pg.ft40rf_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num accent">' + pgFEU.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + pg.booking_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + (Math.ceil(pg.weight_sum/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-        var pgAvg = pg.booking_sum > 0 ? Math.ceil((pg.weight_sum/1000) / pg.booking_sum * 10) / 10 : 0;
-        tbody += '<td class="num">' + pgAvg.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
+        tbody += '<td>' + escapeHtml(c.pol) + '</td>';
+        tbody += '<td>' + escapeHtml(c.del) + '</td>';
+        tbody += '<td>' + (c.etb || '-') + '</td>';
+        tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
+        var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
+        tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
         tbody += '</tr>';
         totalRows++;
-
-        pg.combos.forEach(function(c) {
-          var cFEU = c.ft40_sum + c.ft40rf_sum;
-          tbody += '<tr class="detail-row hidden pol-del" data-parent="' + escapeHtml(lane) + '" data-pol="' + polId + '">';
-          tbody += '<td></td><td></td>';
-          tbody += '<td>' + escapeHtml(c.pol) + '</td>';
-          tbody += '<td>' + escapeHtml(c.del) + '</td>';
-          tbody += '<td></td>';  // ETB shown on POL TOTAL row only
-          tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-          tbody += '<td class="num">' + (Math.ceil(c.weight_sum/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-          var avg = c.booking_sum > 0 ? Math.ceil((c.weight_sum/1000) / c.booking_sum * 10) / 10 : 0;
-          tbody += '<td class="num">' + avg.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>';
-          tbody += '</tr>';
-          totalRows++;
-        });
       });
     });
   });
@@ -794,21 +755,7 @@ function toggleLane(row) {
   row.classList.toggle('collapsed', !row.classList.contains('expanded'));
   var lane = row.dataset.lane;
   var visible = row.classList.contains('expanded');
-  // Show CUL + POL TOTAL rows; keep DEL rows hidden by default
-  document.querySelectorAll('[data-parent="' + lane + '"]:not(.pol-del)').forEach(function(r) {
-    r.classList.toggle('hidden', !visible);
-  });
-  // When collapsing, also hide DEL rows and reset POL expanded state
-  if (!visible) {
-    document.querySelectorAll('[data-pol]').forEach(function(r) { r.classList.remove('expanded'); });
-  }
-}
-
-function togglePolTotal(row) {
-  row.classList.toggle('expanded');
-  var polId = row.dataset.pol;
-  var visible = row.classList.contains('expanded');
-  document.querySelectorAll('[data-pol="' + polId + '"].pol-del').forEach(function(r) {
+  document.querySelectorAll('[data-parent="' + lane + '"]').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
   });
 }
@@ -891,7 +838,7 @@ function updateDetail(data) {
       '<td class="num">' + r.ft40 + '</td>' +
       '<td class="num"><b>' + r.teu + '</b></td>' +
       '<td class="num">' + r.booking_cnt + '</td>' +
-      '<td class="num">' + (Math.ceil(r.container_weight/1000*10)/10).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}) + '</td>' +
+      '<td class="num">' + r.container_weight.toLocaleString() + '</td>' +
       '<td>' + escapeHtml(r.shipper) + '</td>' +
       '<td>' + escapeHtml(r.forwarder) + '</td>' +
       '</tr>';
@@ -962,7 +909,6 @@ function saveFilterState() {
       etdTo: document.getElementById('etdTo').value,
       etbFrom: document.getElementById('etbFrom').value,
       etbTo: document.getElementById('etbTo').value,
-      sul: sulFilter,
       detailSearch: document.getElementById('detailSearch').value
     };
     localStorage.setItem('db_filter_state', JSON.stringify(state));
@@ -991,14 +937,6 @@ function restoreFilterState() {
     if (state.etdTo) document.getElementById('etdTo').value = state.etdTo;
     if (state.etbFrom) document.getElementById('etbFrom').value = state.etbFrom;
     if (state.etbTo) document.getElementById('etbTo').value = state.etbTo;
-
-    // Restore SUL_YN filter
-    if (state.sul && state.sul !== 'ALL') {
-      sulFilter = state.sul;
-      document.querySelectorAll("#sulSeg button").forEach(function(b){
-        b.classList.toggle("active", b.dataset.sul === state.sul);
-      });
-    }
 
     // Step 3: Manually set saved CUL/POL/DEL/DIR selections BEFORE cascade
     if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
@@ -1081,11 +1019,6 @@ document.getElementById('resetAll').onclick = function() {
   etbFrom.value = ''; etbTo.value = '';
   if (GLOBAL_ETB_MIN) { etbFrom.min = GLOBAL_ETB_MIN; etbFrom.max = GLOBAL_ETB_MAX; }
   if (GLOBAL_ETB_MIN) { etbTo.min = GLOBAL_ETB_MIN; etbTo.max = GLOBAL_ETB_MAX; }
-  // Reset SUL_YN to ALL
-  sulFilter = "ALL";
-  document.querySelectorAll("#sulSeg button").forEach(function(b){
-    b.classList.toggle("active", b.dataset.sul === "ALL");
-  });
   refreshAll();
   saveFilterState();
 };
