@@ -75,12 +75,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .summary-table .lane-row td{font-size:13px;color:#0f3460}
 .summary-table .lane-row .expand-icon{display:inline-block;width:16px;text-align:center;transition:transform .2s}
 .summary-table .lane-row.expanded .expand-icon{transform:rotate(90deg)}
-.summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
-.summary-table .pol-row td{padding-left:46px;font-weight:600;font-size:12px;cursor:pointer;background:#f9fafc}
+
+.summary-table .pol-row td{padding-left:28px;font-weight:600;font-size:12px;cursor:pointer;background:#f9fafc}
 .summary-table .pol-row .expand-icon{display:inline-block;width:14px;text-align:center;transition:transform .2s;font-size:10px}
 .summary-table .pol-row.expanded .expand-icon{transform:rotate(90deg)}
-.summary-table .detail-row td{padding-left:64px;font-size:12px;color:#555}
-.summary-table tr.detail-row.hidden,.summary-table tr.pol-row.hidden,.summary-table tr.cul-row.hidden{display:none}
+.summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
+.summary-table tr.detail-row.hidden,.summary-table tr.pol-row.hidden{display:none}
 .summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-table .highlight{color:#0f3460;font-weight:600}
 
@@ -659,8 +659,10 @@ function updateKPIs(data) {
 }
 
 // ============ SUMMARY TABLE ============
+// ============ SUMMARY TABLE ============
+// Structure: (Lane + CUL CODE) -> POL (collapsible) -> DEL detail (collapsible)
 function buildSummary(data) {
-  // Aggregate detail level by (Lane, CUL, POL, DEL, ETB) to avoid duplicate breakdown lines
+  // Aggregate by (Lane, CUL, POL, DEL, ETB)
   var groups = {};
   data.forEach(function(r) {
     var lk = r.lane || '(blank)';
@@ -691,58 +693,36 @@ function buildSummary(data) {
   var totalRows = 0;
   var lanes = Object.keys(groups).sort();
   lanes.forEach(function(lane) {
-    var laneBooking = 0, laneWeight = 0, laneFT20 = 0, laneFT40 = 0, laneFT40RF = 0, laneOpTeu = 0;
     var culCodes = Object.keys(groups[lane]).sort();
     culCodes.forEach(function(ck) {
+      // === Lane + CUL combined row (top level, clickable) ===
+      var lcBooking = 0, lcWeight = 0, lcFT20 = 0, lcFT40 = 0, lcFT40RF = 0, lcOpTeu = 0;
       Object.keys(groups[lane][ck]).forEach(function(pk) {
         Object.keys(groups[lane][ck][pk]).forEach(function(key) {
           var d = groups[lane][ck][pk][key];
-          laneBooking += d.booking_sum; laneWeight += d.weight_sum; laneFT20 += d.ft20_sum;
-          laneFT40 += d.ft40_sum; laneFT40RF += d.ft40rf_sum; laneOpTeu += d.op_teu_sum;
+          lcBooking += d.booking_sum; lcWeight += d.weight_sum; lcFT20 += d.ft20_sum;
+          lcFT40 += d.ft40_sum; lcFT40RF += d.ft40rf_sum; lcOpTeu += d.op_teu_sum;
         });
       });
-    });
+      var lcFEU = lcFT40 + lcFT40RF;
+      var parentKey = lane + '|' + ck;
 
-    var laneFEU = laneFT40 + laneFT40RF;
-    tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
-    tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td></td>';
-    tbody += '<td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + laneBooking.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + laneOpTeu.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + formatWeight(laneWeight) + '</td>';
-    tbody += '<td class="num highlight">' + (laneBooking > 0 ? formatWeight(laneWeight/laneBooking) : '0') + '</td>';
-    tbody += '</tr>';
-
-    culCodes.forEach(function(ck) {
-      var pols = Object.keys(groups[lane][ck]).sort();
-      var culBooking = 0, culWeight = 0, culFT20 = 0, culFT40 = 0, culFT40RF = 0, culOpTeu = 0;
-      pols.forEach(function(pk) {
-        Object.keys(groups[lane][ck][pk]).forEach(function(key) {
-          var d = groups[lane][ck][pk][key];
-          culBooking += d.booking_sum; culWeight += d.weight_sum; culFT20 += d.ft20_sum;
-          culFT40 += d.ft40_sum; culFT40RF += d.ft40rf_sum; culOpTeu += d.op_teu_sum;
-        });
-      });
-      var culFEU = culFT40 + culFT40RF;
-
-      tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
-      tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
+      tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-parent-key="' + escapeHtml(parentKey) + '">';
+      tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
+      tbody += '<td><b>' + escapeHtml(ck) + '</b></td>';
       tbody += '<td></td><td></td><td></td>';
-      tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
-      tbody += '<td class="num accent">' + culFEU.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + culBooking.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + culOpTeu.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + formatWeight(culWeight) + '</td>';
-      tbody += '<td class="num">' + (culBooking > 0 ? formatWeight(culWeight/culBooking) : '0') + '</td>';
+      tbody += '<td class="num highlight">' + lcFT20.toLocaleString() + '</td>';
+      tbody += '<td class="num highlight">' + lcFT40.toLocaleString() + '</td>';
+      tbody += '<td class="num highlight">' + lcFT40RF.toLocaleString() + '</td>';
+      tbody += '<td class="num highlight accent">' + lcFEU.toLocaleString() + '</td>';
+      tbody += '<td class="num highlight">' + lcBooking.toLocaleString() + '</td>';
+      tbody += '<td class="num highlight">' + lcOpTeu.toLocaleString() + '</td>';
+      tbody += '<td class="num highlight">' + formatWeight(lcWeight) + '</td>';
+      tbody += '<td class="num highlight">' + (lcBooking > 0 ? formatWeight(lcWeight/lcBooking) : '0') + '</td>';
       tbody += '</tr>';
-      totalRows++;
 
+      // === POL rows under this (Lane, CUL) ===
+      var pols = Object.keys(groups[lane][ck]).sort();
       pols.forEach(function(pk) {
         var details = Object.keys(groups[lane][ck][pk]).map(function(k){ return groups[lane][ck][pk][k]; })
           .sort(function(a,b){ return a.del.localeCompare(b.del); });
@@ -760,7 +740,7 @@ function buildSummary(data) {
         });
         var polFEU = polFT40 + polFT40RF;
 
-        tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-lane="' + escapeHtml(lane) + '" data-parent="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
+        tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '" data-parent-key="' + escapeHtml(parentKey) + '">';
         tbody += '<td></td><td></td>';
         tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(pk) + '</b></td>';
         tbody += '<td></td>';
@@ -776,6 +756,7 @@ function buildSummary(data) {
         tbody += '</tr>';
         totalRows++;
 
+        // === DEL detail rows under this POL ===
         details.forEach(function(d) {
           var dFEU = d.ft40_sum + d.ft40rf_sum;
           tbody += '<tr class="detail-row hidden" data-lane="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
@@ -808,17 +789,16 @@ function buildSummary(data) {
 function toggleLane(row) {
   row.classList.toggle('expanded');
   row.classList.toggle('collapsed', !row.classList.contains('expanded'));
-  var lane = row.dataset.lane;
+  var parentKey = row.dataset.parentKey;
   var visible = row.classList.contains('expanded');
-  // Show/hide all child rows (CUL + POL)
-  document.querySelectorAll('tr[data-parent="' + lane + '"]').forEach(function(r) {
+  // Show/hide all POL rows under this (Lane, CUL)
+  document.querySelectorAll('tr.pol-row[data-parent-key="' + parentKey + '"]').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
     if (!visible) {
-      // Collapsing lane: also hide all detail-rows under this lane
-      if (r.classList.contains('pol-row')) {
-        r.classList.remove('expanded');
-      }
-      document.querySelectorAll('tr.detail-row[data-lane="' + lane + '"]').forEach(function(d) {
+      // Collapsing lane+cul: also hide all detail-rows under this lane+cul
+      r.classList.remove('expanded');
+      var lane = r.dataset.lane, cul = r.dataset.cul, pol = r.dataset.pol;
+      document.querySelectorAll('tr.detail-row[data-lane="' + lane + '"][data-cul="' + cul + '"][data-pol="' + pol + '"]').forEach(function(d) {
         d.classList.add('hidden');
       });
     }
