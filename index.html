@@ -743,7 +743,7 @@ function buildSummary(data) {
         });
         var polFEU = polFT40 + polFT40RF;
 
-        tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-parent="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
+        tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-lane="' + escapeHtml(lane) + '" data-parent="' + escapeHtml(lane) + '" data-cul="' + escapeHtml(ck) + '" data-pol="' + escapeHtml(pk) + '">';
         tbody += '<td></td><td></td>';
         tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(pk) + '</b></td>';
         tbody += '<td></td>';
