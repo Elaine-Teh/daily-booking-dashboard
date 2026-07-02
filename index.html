@@ -237,6 +237,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           <th class="num" style="min-width:60px">40RF</th>
           <th class="num accent" style="min-width:60px">FEU</th>
           <th class="num">Sum of Booking</th>
+          <th class="num">OP Total</th>
           <th class="num">Sum of Container Weight</th>
           <th class="num">Avg Weight</th>
         </tr>
@@ -256,7 +257,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <h2>📄 Detail Data <input class="detail-search" id="detailSearch" placeholder="Search BL / Shipper / Forwarder..."></h2>
     <div class="detail-table-wrap">
       <table class="detail-table" id="detailTable"><thead><tr>
-        <th>BL No.</th><th>CUL Code</th><th>Trunk VVD</th><th>Lane</th><th>POR</th><th>POL</th><th>ETD</th><th>POD</th><th>DEL</th><th>20ft</th><th>40ft</th><th>TEU</th><th>Booking</th><th>Weight</th><th>Shipper</th><th>Forwarder</th>
+        <th>BL No.</th><th>CUL Code</th><th>Trunk VVD</th><th>Lane</th><th>POR</th><th>POL</th><th>ETD</th><th>POD</th><th>DEL</th><th>20ft</th><th>40ft</th><th>TEU</th><th>Booking</th><th>OP Total</th><th>Weight</th><th>Shipper</th><th>Forwarder</th>
       </tr></thead><tbody></tbody></table>
     </div>
     <div class="detail-info" id="detailCount"></div>
@@ -662,20 +663,21 @@ function buildSummary(data) {
     if (!groups[lk]) groups[lk] = {};
     if (!groups[lk][ck]) groups[lk][ck] = {};
     if (!groups[lk][ck][comboKey]) {
-      groups[lk][ck][comboKey] = { pol: r.pol, del: r.del_port, eta: r.etb || '', booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
+      groups[lk][ck][comboKey] = { pol: r.pol, del: r.del_port, eta: r.etb || '', booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0, op_teu_sum: 0 };
     }
     groups[lk][ck][comboKey].booking_sum += r.booking_cnt;
     groups[lk][ck][comboKey].weight_sum += r.container_weight;
     groups[lk][ck][comboKey].ft20_sum += r.ft20;
     groups[lk][ck][comboKey].ft40_sum += r.ft40;
     groups[lk][ck][comboKey].ft40rf_sum += r.ft40rf;
+    groups[lk][ck][comboKey].op_teu_sum += r.op_teu;
   });
 
   var tbody = '';
   var totalRows = 0;
   var lanes = Object.keys(groups).sort();
   lanes.forEach(function(lane) {
-    var laneBooking = 0, laneWeight = 0, laneFT20 = 0, laneFT40 = 0, laneFT40RF = 0;
+    var laneBooking = 0, laneWeight = 0, laneFT20 = 0, laneFT40 = 0, laneFT40RF = 0, laneOpTeu = 0;
     var culCodes = Object.keys(groups[lane]).sort();
     culCodes.forEach(function(ck) {
       var combos = Object.values(groups[lane][ck]);
@@ -684,6 +686,7 @@ function buildSummary(data) {
       laneFT20 += combos.reduce(function(s,v){return s+v.ft20_sum},0);
       laneFT40 += combos.reduce(function(s,v){return s+v.ft40_sum},0);
       laneFT40RF += combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
+      laneOpTeu += combos.reduce(function(s,v){return s+v.op_teu_sum},0);
     });
 
     var laneFEU = laneFT40 + laneFT40RF;
@@ -695,6 +698,7 @@ function buildSummary(data) {
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneBooking.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + laneOpTeu.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneWeight.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + (laneBooking > 0 ? Math.round(laneWeight/laneBooking).toLocaleString() : '0') + '</td>';
     tbody += '</tr>';
@@ -706,6 +710,7 @@ function buildSummary(data) {
       var culFT20 = combos.reduce(function(s,v){return s+v.ft20_sum},0);
       var culFT40 = combos.reduce(function(s,v){return s+v.ft40_sum},0);
       var culFT40RF = combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
+      var culOpTeu = combos.reduce(function(s,v){return s+v.op_teu_sum},0);
       var culFEU = culFT40 + culFT40RF;
 
       tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
@@ -716,6 +721,7 @@ function buildSummary(data) {
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
       tbody += '<td class="num accent">' + culFEU.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culBooking.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + culOpTeu.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culWeight.toLocaleString() + '</td>';
       tbody += '<td class="num">' + (culBooking > 0 ? Math.round(culWeight/culBooking).toLocaleString() : '0') + '</td>';
       tbody += '</tr>';
@@ -733,6 +739,7 @@ function buildSummary(data) {
         tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
         tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
         tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + c.op_teu_sum.toLocaleString() + '</td>';
         tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
         var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
         tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
@@ -743,7 +750,7 @@ function buildSummary(data) {
   });
 
   if (totalRows === 0) {
-    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
+    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="12" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
   } else {
     document.getElementById('summaryTable').querySelector('tbody').innerHTML = tbody;
   }
@@ -838,12 +845,13 @@ function updateDetail(data) {
       '<td class="num">' + r.ft40 + '</td>' +
       '<td class="num"><b>' + r.teu + '</b></td>' +
       '<td class="num">' + r.booking_cnt + '</td>' +
+      '<td class="num">' + r.op_teu + '</td>' +
       '<td class="num">' + r.container_weight.toLocaleString() + '</td>' +
       '<td>' + escapeHtml(r.shipper) + '</td>' +
       '<td>' + escapeHtml(r.forwarder) + '</td>' +
       '</tr>';
   }).join('');
-  document.getElementById('detailTable').querySelector('tbody').innerHTML = rows || '<tr><td colspan="16" style="text-align:center;padding:20px">No matching records</td></tr>';
+  document.getElementById('detailTable').querySelector('tbody').innerHTML = rows || '<tr><td colspan="17" style="text-align:center;padding:20px">No matching records</td></tr>';
   document.getElementById('detailCount').textContent = 'Showing ' + Math.min(filtered.length, 500) + ' of ' + filtered.length + ' records';
 }
 
