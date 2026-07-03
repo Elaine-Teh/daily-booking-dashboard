@@ -75,9 +75,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .summary-table .lane-row td{font-size:13px;color:#0f3460}
 .summary-table .lane-row .expand-icon{display:inline-block;width:16px;text-align:center;transition:transform .2s}
 .summary-table .lane-row.expanded .expand-icon{transform:rotate(90deg)}
-.summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
-.summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
-.summary-table tr.detail-row.hidden{display:none}
+.summary-table tr.hidden{display:none}
+.summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px;cursor:pointer}
+.summary-table .cul-row .expand-icon{display:inline-block;width:16px;text-align:center;transition:transform .2s}
+.summary-table .cul-row.expanded .expand-icon{transform:rotate(90deg)}
+.summary-table .pol-row td{padding-left:46px;font-size:12px;cursor:pointer}
+.summary-table .pol-row .expand-icon{display:inline-block;width:16px;text-align:center;transition:transform .2s}
+.summary-table .pol-row.expanded .expand-icon{transform:rotate(90deg)}
+.summary-table .detail-row td{padding-left:64px;font-size:12px;color:#555}
 .summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-table .highlight{color:#0f3460;font-weight:600}
 
@@ -653,44 +658,54 @@ function updateKPIs(data) {
 }
 
 // ============ SUMMARY TABLE ============
+// ============ SUMMARY TABLE ============
+// 4-level structure: Lane → CUL → POL (with ETB) → DEL detail
 function buildSummary(data) {
   var groups = {};
   data.forEach(function(r) {
     var lk = r.lane || '(blank)';
     var ck = r.cul_code || '(blank)';
-    var comboKey = r.pol + '|||' + r.del_port;
+    var pk = r.pol || '(blank)';
+    var dk = r.del_port || '(blank)';
+    var ek = r.etb || '';
     if (!groups[lk]) groups[lk] = {};
     if (!groups[lk][ck]) groups[lk][ck] = {};
-    if (!groups[lk][ck][comboKey]) {
-      groups[lk][ck][comboKey] = { pol: r.pol, del: r.del_port, eta: r.etb || '', booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
+    if (!groups[lk][ck][pk]) groups[lk][ck][pk] = {};
+    var detailKey = dk + '|' + ek;
+    if (!groups[lk][ck][pk][detailKey]) {
+      groups[lk][ck][pk][detailKey] = { del: dk, etb: ek, booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0, op_teu_sum: 0 };
     }
-    groups[lk][ck][comboKey].booking_sum += r.booking_cnt;
-    groups[lk][ck][comboKey].weight_sum += r.container_weight;
-    groups[lk][ck][comboKey].ft20_sum += r.ft20;
-    groups[lk][ck][comboKey].ft40_sum += r.ft40;
-    groups[lk][ck][comboKey].ft40rf_sum += r.ft40rf;
+    var g = groups[lk][ck][pk][detailKey];
+    g.booking_sum += r.booking_cnt;
+    g.weight_sum += r.container_weight;
+    g.ft20_sum += r.ft20;
+    g.ft40_sum += r.ft40;
+    g.ft40rf_sum += r.ft40rf;
+    g.op_teu_sum += r.op_teu;
   });
 
   var tbody = '';
   var totalRows = 0;
   var lanes = Object.keys(groups).sort();
   lanes.forEach(function(lane) {
-    var laneBooking = 0, laneWeight = 0, laneFT20 = 0, laneFT40 = 0, laneFT40RF = 0;
+    // Lane totals
+    var laneBooking = 0, laneWeight = 0, laneFT20 = 0, laneFT40 = 0, laneFT40RF = 0, laneOpTeu = 0;
     var culCodes = Object.keys(groups[lane]).sort();
     culCodes.forEach(function(ck) {
-      var combos = Object.values(groups[lane][ck]);
-      laneBooking += combos.reduce(function(s,v){return s+v.booking_sum},0);
-      laneWeight += combos.reduce(function(s,v){return s+v.weight_sum},0);
-      laneFT20 += combos.reduce(function(s,v){return s+v.ft20_sum},0);
-      laneFT40 += combos.reduce(function(s,v){return s+v.ft40_sum},0);
-      laneFT40RF += combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
+      Object.keys(groups[lane][ck]).forEach(function(pk) {
+        Object.values(groups[lane][ck][pk]).forEach(function(d) {
+          laneBooking += d.booking_sum; laneWeight += d.weight_sum;
+          laneFT20 += d.ft20_sum; laneFT40 += d.ft40_sum;
+          laneFT40RF += d.ft40rf_sum; laneOpTeu += d.op_teu_sum;
+        });
+      });
     });
-
     var laneFEU = laneFT40 + laneFT40RF;
 
     tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
     tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<td></td><td></td><td></td>';
+    tbody += '<td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
@@ -700,16 +715,20 @@ function buildSummary(data) {
     tbody += '</tr>';
 
     culCodes.forEach(function(ck) {
-      var combos = Object.values(groups[lane][ck]).sort(function(a,b){ return a.pol.localeCompare(b.pol); });
-      var culBooking = combos.reduce(function(s,v){return s+v.booking_sum},0);
-      var culWeight = combos.reduce(function(s,v){return s+v.weight_sum},0);
-      var culFT20 = combos.reduce(function(s,v){return s+v.ft20_sum},0);
-      var culFT40 = combos.reduce(function(s,v){return s+v.ft40_sum},0);
-      var culFT40RF = combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
+      // CUL totals
+      var culBooking = 0, culWeight = 0, culFT20 = 0, culFT40 = 0, culFT40RF = 0, culOpTeu = 0;
+      Object.keys(groups[lane][ck]).forEach(function(pk) {
+        Object.values(groups[lane][ck][pk]).forEach(function(d) {
+          culBooking += d.booking_sum; culWeight += d.weight_sum;
+          culFT20 += d.ft20_sum; culFT40 += d.ft40_sum;
+          culFT40RF += d.ft40rf_sum; culOpTeu += d.op_teu_sum;
+        });
+      });
       var culFEU = culFT40 + culFT40RF;
+      var culKey = lane + '|' + ck;
 
-      tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
-      tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
+      tbody += '<tr class="cul-row hidden" onclick="toggleCul(this)" data-parent="' + escapeHtml(lane) + '" data-cul-key="' + escapeHtml(culKey) + '">';
+      tbody += '<td></td><td><span class="expand-icon">▶</span> <b>' + escapeHtml(ck) + '</b></td>';
       tbody += '<td></td><td></td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
@@ -721,29 +740,70 @@ function buildSummary(data) {
       tbody += '</tr>';
       totalRows++;
 
-      combos.forEach(function(c) {
-        var cFEU = c.ft40_sum + c.ft40rf_sum;
-        tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
-        tbody += '<td></td><td></td>';
-        tbody += '<td>' + escapeHtml(c.pol) + '</td>';
-        tbody += '<td>' + escapeHtml(c.del) + '</td>';
-        tbody += '<td>' + (c.etb || '-') + '</td>';
-        tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
-        var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
-        tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
+      // POL rows — sort by earliest ETB date
+      var polNames = Object.keys(groups[lane][ck]);
+      var polEtbMin = {};
+      polNames.forEach(function(pk) {
+        var etbs = Object.values(groups[lane][ck][pk]).map(function(d){return d.etb}).filter(function(e){return e});
+        polEtbMin[pk] = etbs.length > 0 ? etbs.sort()[0] : '';
+      });
+      polNames.sort(function(a,b) {
+        if (polEtbMin[a] && polEtbMin[b]) return polEtbMin[a] < polEtbMin[b] ? -1 : 1;
+        if (polEtbMin[a] && !polEtbMin[b]) return -1;
+        if (!polEtbMin[a] && polEtbMin[b]) return 1;
+        return a.localeCompare(b);
+      });
+
+      polNames.forEach(function(pk) {
+        // POL totals
+        var polBooking = 0, polWeight = 0, polFT20 = 0, polFT40 = 0, polFT40RF = 0, polOpTeu = 0;
+        var etbDates = [];
+        Object.values(groups[lane][ck][pk]).forEach(function(d) {
+          polBooking += d.booking_sum; polWeight += d.weight_sum;
+          polFT20 += d.ft20_sum; polFT40 += d.ft40_sum;
+          polFT40RF += d.ft40rf_sum; polOpTeu += d.op_teu_sum;
+          if (d.etb) etbDates.push(d.etb);
+        });
+        etbDates.sort();
+        var polFEU = polFT40 + polFT40RF;
+        var etbDisplay = etbDates.length === 0 ? '-' : (etbDates.length === 1 ? etbDates[0] : etbDates[0] + ' ~ ' + etbDates[etbDates.length-1]);
+        var polKey = lane + '|' + ck + '|' + pk;
+
+        tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-cul-key="' + escapeHtml(culKey) + '" data-pol-key="' + escapeHtml(polKey) + '">';
+        tbody += '<td></td><td></td><td><span class="expand-icon">▶</span> ' + escapeHtml(pk) + '</td>';
+        tbody += '<td>' + etbDisplay + '</td>';
+        tbody += '<td class="num">' + polFT20.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polFT40.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polFT40RF.toLocaleString() + '</td>';
+        tbody += '<td class="num accent">' + polFEU.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polBooking.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polWeight.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + (polBooking > 0 ? Math.round(polWeight/polBooking).toLocaleString() : '0') + '</td>';
         tbody += '</tr>';
         totalRows++;
+
+        // DEL detail rows
+        Object.values(groups[lane][ck][pk]).forEach(function(d) {
+          var dFEU = d.ft40_sum + d.ft40rf_sum;
+          tbody += '<tr class="detail-row hidden" data-pol-key="' + escapeHtml(polKey) + '">';
+          tbody += '<td></td><td></td><td></td>';
+          tbody += '<td>' + escapeHtml(d.del) + '</td>';
+          tbody += '<td class="num">' + d.ft20_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.ft40_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.ft40rf_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num accent">' + dFEU.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.booking_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.weight_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + (d.booking_sum > 0 ? Math.round(d.weight_sum/d.booking_sum).toLocaleString() : '0') + '</td>';
+          tbody += '</tr>';
+          totalRows++;
+        });
       });
     });
   });
 
   if (totalRows === 0) {
-    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
+    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="12" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
   } else {
     document.getElementById('summaryTable').querySelector('tbody').innerHTML = tbody;
   }
@@ -755,7 +815,52 @@ function toggleLane(row) {
   row.classList.toggle('collapsed', !row.classList.contains('expanded'));
   var lane = row.dataset.lane;
   var visible = row.classList.contains('expanded');
-  document.querySelectorAll('[data-parent="' + lane + '"]').forEach(function(r) {
+  // Show/hide CUL rows under this lane; if hiding, also collapse their children
+  document.querySelectorAll('tr.cul-row[data-parent="' + lane + '"]').forEach(function(r) {
+    r.classList.toggle('hidden', !visible);
+    if (!visible) {
+      r.classList.remove('expanded');
+      r.classList.add('collapsed', true);
+      // Also hide all POL rows under this CUL
+      var ck = r.dataset.culKey;
+      document.querySelectorAll('tr.pol-row[data-cul-key="' + ck + '"]').forEach(function(pr) {
+        pr.classList.add('hidden');
+        pr.classList.remove('expanded');
+        // Also hide all detail rows under this POL
+        var pk = pr.dataset.polKey;
+        document.querySelectorAll('tr.detail-row[data-pol-key="' + pk + '"]').forEach(function(dr) {
+          dr.classList.add('hidden');
+        });
+      });
+    }
+  });
+}
+
+function toggleCul(row) {
+  row.classList.toggle('expanded');
+  row.classList.toggle('collapsed', !row.classList.contains('expanded'));
+  var ck = row.dataset.culKey;
+  var visible = row.classList.contains('expanded');
+  // Show/hide POL rows under this CUL; if hiding, also collapse their children
+  document.querySelectorAll('tr.pol-row[data-cul-key="' + ck + '"]').forEach(function(r) {
+    r.classList.toggle('hidden', !visible);
+    if (!visible) {
+      r.classList.remove('expanded');
+      // Also hide all detail rows under this POL
+      var pk = r.dataset.polKey;
+      document.querySelectorAll('tr.detail-row[data-pol-key="' + pk + '"]').forEach(function(dr) {
+        dr.classList.add('hidden');
+      });
+    }
+  });
+}
+
+function togglePol(row) {
+  row.classList.toggle('expanded');
+  row.classList.toggle('collapsed', !row.classList.contains('expanded'));
+  var pk = row.dataset.polKey;
+  var visible = row.classList.contains('expanded');
+  document.querySelectorAll('tr.detail-row[data-pol-key="' + pk + '"]').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
   });
 }
