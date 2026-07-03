@@ -41,6 +41,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .filter-group{display:flex;align-items:center;gap:6px}
 
 .filter-group label{font-size:12px;font-weight:600;color:#666;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+.sul-filter{display:flex;gap:4px}
+.sul-filter button{padding:4px 14px;border:1px solid #ddd;border-radius:6px;background:#f5f6fa;cursor:pointer;font-size:12px;font-weight:600;transition:all .2s}
+.sul-filter button:hover{border-color:#0f3460}
+.sul-filter button.active{background:#0f3460;color:#fff;border-color:#0f3460}
 
 
 
@@ -84,9 +88,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 .ms-count{font-size:11px;color:#999;margin-left:auto}
 
-.filter-clear{font-size:11px;color:#e74c3c;cursor:pointer;text-decoration:underline;white-space:nowrap}
-
-.filter-clear:hover{color:#c0392b}
+/* SUL/CUL Toggle Filter */
+.sul-filter{display:flex;gap:0;background:#1a1a2e;border-radius:6px;overflow:hidden}
+.sul-filter button{padding:6px 16px;font-size:12px;font-weight:600;border:none;background:transparent;color:#6c7a89;cursor:pointer;transition:.2s}
+.sul-filter button.active{background:#0f3460;color:#fff}
+.sul-filter button:not(.active):hover{color:#fff}
 
 
 
@@ -269,6 +275,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <!-- FILTERS -->
 
   <div class="filters-bar">
+
+    <div class="filter-group">
+
+      <label>SUL/CUL</label>
+
+      <div class="sul-filter" id="sulFilter">
+
+        <button class="active" data-value="all">ALL</button>
+
+        <button data-value="cul">CUL</button>
+
+        <button data-value="sul">SUL</button>
+
+      </div>
+
+    </div>
+
+
 
     <div class="filter-group">
 
@@ -583,6 +607,8 @@ Chart.defaults.font.size = 11;
 var ALL_DATA, LANE_LIST, POL_LIST, DEL_LIST, CUL_LIST, DIR_LIST;
 
 var LANE_CUL_MAP, LANE_POL_MAP, LANE_DEL_MAP, LANE_ETD_MAP, LANE_ETB_MAP;
+
+var SUL_FILTER = 'all'; // 'all' | 'cul' | 'sul'
 
 var GLOBAL_ETD_MIN, GLOBAL_ETD_MAX;
 
@@ -952,6 +978,9 @@ function getFilteredData() {
 
   var dirSel = msDir.getSelected();
 
+  // SUL/CUL filter
+  var sulFilter = SUL_FILTER;
+
   var etdFrom = document.getElementById('etdFrom').value;
 
   var etdTo = document.getElementById('etdTo').value;
@@ -993,6 +1022,12 @@ function getFilteredData() {
   var result = ALL_DATA.filter(function(r) {
 
     var isBzcf = (r.cul_code === 'BZCF2621W');
+
+    // SUL/CUL filter: 'all' shows everything, 'cul' shows sul_yn='N', 'sul' shows sul_yn='Y'
+    if (sulFilter !== 'all') {
+      if (sulFilter === 'cul' && r.sul_yn !== 'N') return false;
+      if (sulFilter === 'sul' && r.sul_yn !== 'Y') return false;
+    }
 
     if (!laneSel.has(r.lane)) { if (isBzcf) bzcfLost.lane++; return false; } else { lanePass++; }
 
@@ -2244,6 +2279,12 @@ document.getElementById('resetAll').onclick = function() {
 
   msDir.setAll();
 
+  // Reset SUL/CUL filter
+  SUL_FILTER = 'all';
+  document.querySelectorAll('#sulFilter button').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.value === 'all');
+  });
+
   var fromEl = document.getElementById('etdFrom');
 
   var toEl = document.getElementById('etdTo');
@@ -2279,6 +2320,17 @@ document.getElementById('btnClearNotes').onclick = function() {
 };
 
 // Note: initFilters() and refreshAll() are called inside loadData() after fetch completes
+
+// ============ SUL/CUL FILTER ============
+document.querySelectorAll('#sulFilter button').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('#sulFilter button').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    SUL_FILTER = btn.dataset.value;
+    refreshAll();
+    saveFilterState();
+  });
+});
 
 </script>
 
