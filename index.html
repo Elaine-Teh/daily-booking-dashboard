@@ -771,7 +771,7 @@ function buildSummary(data) {
 
         tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-cul-key="' + escapeHtml(culKey) + '" data-pol-key="' + escapeHtml(polKey) + '">';
         tbody += '<td></td><td></td><td><span class="expand-icon">▶</span> ' + escapeHtml(pk) + '</td>';
-        tbody += '<td>' + etbDisplay + '</td>';
+        tbody += '<td></td><td>' + etbDisplay + '</td>';
         tbody += '<td class="num">' + polFT20.toLocaleString() + '</td>';
         tbody += '<td class="num">' + polFT40.toLocaleString() + '</td>';
         tbody += '<td class="num">' + polFT40RF.toLocaleString() + '</td>';
@@ -786,8 +786,8 @@ function buildSummary(data) {
         Object.values(groups[lane][ck][pk]).forEach(function(d) {
           var dFEU = d.ft40_sum + d.ft40rf_sum;
           tbody += '<tr class="detail-row hidden" data-pol-key="' + escapeHtml(polKey) + '">';
-          tbody += '<td></td><td></td><td></td>';
-          tbody += '<td>' + escapeHtml(d.del) + '</td>';
+          tbody += '<td></td><td></td><td></td><td>' + escapeHtml(d.del) + '</td>';
+          tbody += '<td></td>';
           tbody += '<td class="num">' + d.ft20_sum.toLocaleString() + '</td>';
           tbody += '<td class="num">' + d.ft40_sum.toLocaleString() + '</td>';
           tbody += '<td class="num">' + d.ft40rf_sum.toLocaleString() + '</td>';
