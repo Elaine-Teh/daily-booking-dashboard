@@ -1491,7 +1491,25 @@ function buildSummary(data) {
 
     culCodes.forEach(function(ck) {
 
-      var pols = Object.keys(groups[lane][ck]).sort();
+      var pols = Object.keys(groups[lane][ck]).sort(function(a,b) {
+        // Sort POLs by their earliest ETB, then alphabetically
+        var aDates = [], bDates = [];
+        Object.keys(groups[lane][ck][a]).forEach(function(key) {
+          var d = groups[lane][ck][a][key];
+          if (d.etb) aDates.push(d.etb);
+        });
+        Object.keys(groups[lane][ck][b]).forEach(function(key) {
+          var d = groups[lane][ck][b][key];
+          if (d.etb) bDates.push(d.etb);
+        });
+        if (aDates.length === 0 && bDates.length === 0) return a.localeCompare(b);
+        if (aDates.length === 0) return 1; // no ETB at bottom
+        if (bDates.length === 0) return -1;
+        var aMin = aDates.slice().sort()[0];
+        var bMin = bDates.slice().sort()[0];
+        if (aMin !== bMin) return aMin.localeCompare(bMin);
+        return a.localeCompare(b);
+      });
 
       var culBooking = 0, culWeight = 0, culFT20 = 0, culFT40 = 0, culFT40RF = 0, culOpTeu = 0;
 
