@@ -130,7 +130,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="loadingArea" style="padding:80px 20px;text-align:center;color:#888;font-size:16px">
   <div style="margin-bottom:12px">⏳ Loading dashboard data...</div>
-  <div style="font-size:13px;color:#bbb">Fetching db_data.json.gz</div>
+  <div id="loadStatus" style="font-size:13px;color:#666;margin-bottom:6px">Fetching db_data.json.gz</div>
+  <div id="loadProgress" style="font-size:13px;color:#bbb"></div>
 </div>
 <div id="errorMsg" style="display:none;padding:60px 20px;text-align:center;color:#e74c3c;font-size:16px"></div>
 
@@ -322,13 +323,36 @@ var msLane, msPol, msDel, msCul, msDir;
   var contentEl = document.getElementById('dashboardContent');
   var errorMsg = document.getElementById('errorMsg');
   var loadStart = Date.now();
+  var progressEl = document.getElementById('loadProgress');
+  var statusEl = document.getElementById('loadStatus');
+
+  function setStatus(text) {
+    if (statusEl) statusEl.textContent = text;
+  }
+  function setProgress(text) {
+    if (progressEl) progressEl.textContent = text;
+  }
 
   function showError(msg, detail) {
     loadingEl.style.display = 'none';
+    contentEl.style.display = 'none';
     errorMsg.style.display = 'block';
     errorMsg.innerHTML = '<b>Failed to load data</b><br>' + msg +
-      (detail ? '<br><span style="font-size:12px;color:#999">' + detail + '</span>' : '');
+      (detail ? '<br><span style=\'font-size:12px;color:#999\'>' + detail + '</span>' : '');
   }
+
+  // Check browser support
+  if (typeof DecompressionStream === 'undefined') {
+    showError('Your browser does not support DecompressionStream.', 'Please use Chrome 103+, Edge 103+, or Safari 16.5+');
+    return;
+  }
+  if (typeof AbortController === 'undefined') {
+    showError('Your browser does not support AbortController.', 'Please use a modern browser.');
+    return;
+  }
+
+  setStatus('Connecting...');
+  setProgress('');
 
   // Abort after 60 seconds (decompression can take time)
   var controller = new AbortController();
@@ -336,17 +360,47 @@ var msLane, msPol, msDel, msCul, msDir;
     controller.abort();
   }, 60000);
 
-  fetch('db_data.json.gz?ts=' + Date.now(), {signal: controller.signal, cache: 'no-store'})
+  var url = 'db_data.json.gz?ts=' + Date.now();
+  fetch(url, {signal: controller.signal, cache: 'no-store'})
     .then(function(r) {
       clearTimeout(timeoutId);
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      // Decompress gzip stream client-side
-      return r.body.pipeThrough(new DecompressionStream('gzip'));
+      var total = r.headers.get('Content-Length');
+      var loaded = 0;
+      setStatus('Downloading db_data.json.gz' + (total ? ' (' + (Math.round(total/1024/1024*10)/10) + ' MB)' : '') + '...');
+      var reader = r.body.getReader();
+      return new ReadableStream({
+        start: function(controller) {
+          function push() {
+            return reader.read().then(function(result) {
+              if (result.done) { controller.close(); return; }
+              loaded += result.value.length;
+              if (total) {
+                var pct = Math.round(loaded / total * 100);
+                setProgress(pct + '% (' + (Math.round(loaded/1024/1024*10)/10) + ' / ' + (Math.round(total/1024/1024*10)/10) + ' MB)');
+              } else {
+                setProgress((Math.round(loaded/1024/1024*10)/10) + ' MB downloaded');
+              }
+              controller.enqueue(result.value);
+              return push();
+            });
+          }
+          return push();
+        },
+        cancel: function() { reader.cancel(); }
+      });
+    })
+    .then(function(stream) {
+      setStatus('Decompressing...');
+      setProgress('');
+      return stream.pipeThrough(new DecompressionStream('gzip'));
     })
     .then(function(decompressedStream) {
+      setStatus('Reading JSON...');
       return new Response(decompressedStream).text();
     })
     .then(function(text) {
+      setStatus('Parsing ' + (Math.round(text.length/1024/1024*10)/10) + ' MB JSON...');
       return JSON.parse(text);
     })
     .then(function(payload) {
@@ -355,137 +409,37 @@ var msLane, msPol, msDel, msCul, msDir;
       POL_LIST = payload.pol_list;
       DEL_LIST = payload.del_list;
       CUL_LIST = payload.cul_list;
-      DIR_LIST = payload.dir_list || ['E','N','S','W'];
-      LANE_CUL_MAP = payload.lane_cul_map || {};
-      LANE_POL_MAP = payload.lane_pol_map || {};
-      LANE_DEL_MAP = payload.lane_del_map || {};
-      LANE_ETD_MAP = payload.lane_etd_map || {};
-      LANE_ETB_MAP = payload.lane_etb_map || {};
+      DIR_LIST = payload.dir_list; ['E','N','S','W'];
+      LANE_CUL_MAP = payload.lane_cul_map; {};
+      LANE_POL_MAP = payload.lane_pol_map; {};
+      LANE_DEL_MAP = payload.lane_del_map; {};
+      LANE_ETD_MAP = payload.lane_etd_map; {};
+      LANE_ETB_MAP = payload.lane_etb_map; {};
 
-      // Data integrity check - also show on screen
-      var checkMsg = '';
-      checkMsg += 'Records: ' + ALL_DATA.length + ' (expected: ' + (payload.total_records || '?') + ')<br>';
-      checkMsg += 'Generated: ' + (payload.generated_at || '?') + '<br>';
-      (function() {
-        var bzcf = ALL_DATA.filter(function(r) { return r.cul_code === 'BZCF2621W'; });
-        if (bzcf.length > 0) {
-          var bzcf20 = bzcf.reduce(function(s,r){return s+r.ft20},0);
-          checkMsg += 'BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf20;
-        }
-      })();
-
+      setStatus('Initializing filters...');
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
-      document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
+      document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at; '');
 
       initFilters();
       initETDRange(payload.etd_min, payload.etd_max);
       initETARange(payload.etb_min, payload.etb_max);
       restoreFilterState();
-      refreshAll(); // always render, even if restore failed
+      cascadeFilters();
+      refreshAll();
     })
     .catch(function(err) {
       clearTimeout(timeoutId);
-      loadingEl.style.display = 'none';
       var elapsed = ((Date.now() - loadStart) / 1000).toFixed(1);
       if (err.name === 'AbortError') {
-        showError('Request timed out after 30 seconds.', 'The data file (~27MB) may be too large for your current network. Try refreshing or check your connection.');
+        showError('Request timed out after ' + elapsed + ' seconds.', 'The data file (~48 MB uncompressed) may be too large for your current network. Try refreshing or check your connection.');
+      } else if (err.message; err.message.indexOf('HTTP') === 0) {
+        showError(err.message, 'Time elapsed: ' + elapsed + 's');
       } else {
-        showError(err.message, 'Time elapsed: ' + elapsed + 's | Please check browser console (F12) for details.');
+        showError(err.message; 'Unknown error', 'Time elapsed: ' + elapsed + 's | Please check browser console (F12) for details.');
       }
     });
-})();
-
-// ============ MULTI-SELECT ENGINE ============
-function buildMultiSelect(id, items, onChange, label) {
-  label = label || id;
-  var root = document.getElementById('ms' + id);
-  var trigger = document.getElementById('ms' + id + 'Trigger');
-  var dropdown = document.getElementById('ms' + id + 'Dropdown');
-  var search = document.getElementById('ms' + id + 'Search');
-  var list = document.getElementById('ms' + id + 'List');
-  var btnAll = document.getElementById('ms' + id + 'All');
-  var btnNone = document.getElementById('ms' + id + 'None');
-
-  var selected = new Set(items);
-  var currentItems = items;
-  var _suppressed = false;  // batch-restore guard
-
-  function updateTrigger() {
-    var count = selected.size, total = currentItems.length;
-    var txt;
-    if (total === 0) txt = '0 available';
-    else if (count === total) txt = 'All ' + label + 's';
-    else txt = count + ' ' + label + ' selected';
-    trigger.querySelector('.ms-text').textContent = txt;
-    if (trigger.querySelector('.ms-badge')) trigger.querySelector('.ms-badge').remove();
-    if (count > 0 && count < total) {
-      var badge = document.createElement('span'); badge.className = 'ms-badge'; badge.textContent = count;
-      trigger.appendChild(badge);
-    }
-  }
-
-  function renderList(filter) {
-    list.innerHTML = '';
-    var filt = (filter || '').toLowerCase();
-    currentItems.forEach(function(item) {
-      if (filt && item.toLowerCase().indexOf(filt) === -1) return;
-      var label = document.createElement('label');
-      var cb = document.createElement('input');
-      cb.type = 'checkbox'; cb.checked = selected.has(item);
-      cb.onchange = function() {
-        if (cb.checked) selected.add(item); else selected.delete(item);
-        updateTrigger(); if (!_suppressed) onChange(selected);
-      };
-      label.appendChild(cb);
-      label.appendChild(document.createTextNode(item));
-      list.appendChild(label);
-    });
-  }
-
-  function toggle() {
-    root.classList.toggle('active');
-    if (root.classList.contains('active')) {
-      if (search) { search.value = ''; search.focus(); }
-      renderList('');
-    }
-  }
-
-  trigger.onclick = function(e) { e.stopPropagation(); toggle(); };
-  if (search) { search.oninput = function() { renderList(search.value); }; }
-  btnAll.onclick = function(e) { e.stopPropagation(); selected = new Set(currentItems); updateTrigger(); renderList(search ? search.value : ''); if (!_suppressed) onChange(selected); };
-  btnNone.onclick = function(e) { e.stopPropagation(); selected = new Set(); updateTrigger(); renderList(search ? search.value : ''); if (!_suppressed) onChange(selected); };
-
-  document.addEventListener('click', function(e) {
-    if (!root.contains(e.target)) root.classList.remove('active');
-  });
-
-  updateTrigger(); renderList('');
-  return {
-    getSelected: function() { return selected; },
-    getItems: function() { return currentItems; },
-    _suppress: function(s) { _suppressed = s; },
-    setAll: function() { selected = new Set(currentItems); updateTrigger(); renderList(''); },
-    clear: function() { selected = new Set(); updateTrigger(); renderList(''); },
-    setSelected: function(items) {
-      var validSet = new Set(currentItems);
-      selected = new Set(Array.isArray(items) ? items.filter(function(x){return validSet.has(x)}) : []);
-      if (selected.size === 0 && currentItems.length > 0) selected = new Set(currentItems);
-      updateTrigger(); renderList('');
-    },
-    updateItems: function(newItems) {
-      currentItems = newItems;
-      // Keep only selections that exist in new items
-      var newSet = new Set(newItems);
-      selected = new Set(Array.from(selected).filter(function(x){return newSet.has(x)}));
-      // If nothing selected, select all new items
-      if (selected.size === 0 && newItems.length > 0) selected = new Set(newItems);
-      updateTrigger(); renderList('');
-    }
-  };
 }
-
-// ============ FILTERING LOGIC ============
 function getFilteredData() {
   var laneSel = msLane.getSelected();
   var polSel = msPol.getSelected();
