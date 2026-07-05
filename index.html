@@ -217,7 +217,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="kpi-card"><div class="kpi-value" id="kpi40">0</div><div class="kpi-label">40ft</div></div>
     <div class="kpi-card accent"><div class="kpi-value" id="kpiTeu">0</div><div class="kpi-label">Total TEU</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpiBooking">0</div><div class="kpi-label">Booking Count</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpiWeight">0</div><div class="kpi-label">Weight (÷1000t)</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpiWeight">0</div><div class="kpi-label">Container Weight</div></div>
   </div>
   <div id="debugPanel" style="display:none;background:#fff3cd;color:#856404;padding:8px 12px;border-radius:6px;margin:8px 0;font-size:12px;font-family:monospace;"></div>
 
@@ -237,8 +237,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           <th class="num" style="min-width:60px">40RF</th>
           <th class="num accent" style="min-width:60px">FEU</th>
           <th class="num">Sum of Booking</th>
-          <th class="num">Weight (÷1000t)</th>
-          <th class="num">Avg Weight(t)</th>
+          <th class="num">Sum of Container Weight</th>
+          <th class="num">Avg Weight</th>
         </tr>
       </thead><tbody></tbody></table>
     </div>
@@ -649,7 +649,7 @@ function updateKPIs(data) {
   document.getElementById('kpiTeu').textContent = tteu.toLocaleString();
   document.getElementById('kpiBooking').textContent = data.length.toLocaleString();
   var tw = data.reduce(function(s,r){return s+r.container_weight},0);
-  document.getElementById('kpiWeight').textContent = (tw/1000).toFixed(1);
+  document.getElementById('kpiWeight').textContent = tw.toLocaleString();
 }
 
 // ============ SUMMARY TABLE ============
@@ -690,15 +690,13 @@ function buildSummary(data) {
 
     tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
     tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td></td>';
-    tbody += '<td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight"></td>';
     tbody += '<td class="num highlight">' + laneBooking.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + (laneWeight/1000).toFixed(1) + '</td>';
-    tbody += '<td class="num highlight">' + (laneBooking > 0 ? (laneWeight/laneBooking).toFixed(1) : '0') + '</td>';
+    tbody += '<td class="num highlight">' + laneWeight.toLocaleString() + '</td>';
+    tbody += '<td class="num highlight">' + (laneBooking > 0 ? Math.round(laneWeight/laneBooking).toLocaleString() : '0') + '</td>';
     tbody += '</tr>';
 
     culCodes.forEach(function(ck) {
@@ -712,15 +710,14 @@ function buildSummary(data) {
 
       tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
       tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
-      tbody += '<td></td><td></td><td></td>';
+      tbody += '<td></td><td></td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
       tbody += '<td class="num accent">' + culFEU.toLocaleString() + '</td>';
-      tbody += '<td class="num"></td>';
       tbody += '<td class="num">' + culBooking.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + (culWeight/1000).toFixed(1) + '</td>';
-      tbody += '<td class="num">' + (culBooking > 0 ? (culWeight/culBooking).toFixed(1) : '0') + '</td>';
+      tbody += '<td class="num">' + culWeight.toLocaleString() + '</td>';
+      tbody += '<td class="num">' + (culBooking > 0 ? Math.round(culWeight/culBooking).toLocaleString() : '0') + '</td>';
       tbody += '</tr>';
       totalRows++;
 
@@ -735,11 +732,10 @@ function buildSummary(data) {
         tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
         tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
         tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
-        tbody += '<td class="num"></td>';
         tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + (c.weight_sum/1000).toFixed(1) + '</td>';
-        var avg = c.booking_sum > 0 ? (c.weight_sum / c.booking_sum) : 0;
-        tbody += '<td class="num">' + avg.toFixed(1) + '</td>';
+        tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
+        var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
+        tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
         tbody += '</tr>';
         totalRows++;
       });
@@ -747,7 +743,7 @@ function buildSummary(data) {
   });
 
   if (totalRows === 0) {
-    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="13" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
+    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
   } else {
     document.getElementById('summaryTable').querySelector('tbody').innerHTML = tbody;
   }
@@ -842,7 +838,7 @@ function updateDetail(data) {
       '<td class="num">' + r.ft40 + '</td>' +
       '<td class="num"><b>' + r.teu + '</b></td>' +
       '<td class="num">' + r.booking_cnt + '</td>' +
-      '<td class="num">' + (r.container_weight/1000).toFixed(1) + '</td>' +
+      '<td class="num">' + r.container_weight.toLocaleString() + '</td>' +
       '<td>' + escapeHtml(r.shipper) + '</td>' +
       '<td>' + escapeHtml(r.forwarder) + '</td>' +
       '</tr>';
