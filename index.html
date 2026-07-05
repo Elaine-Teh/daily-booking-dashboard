@@ -409,17 +409,17 @@ var msLane, msPol, msDel, msCul, msDir;
       POL_LIST = payload.pol_list;
       DEL_LIST = payload.del_list;
       CUL_LIST = payload.cul_list;
-      DIR_LIST = payload.dir_list; ['E','N','S','W'];
-      LANE_CUL_MAP = payload.lane_cul_map; {};
-      LANE_POL_MAP = payload.lane_pol_map; {};
-      LANE_DEL_MAP = payload.lane_del_map; {};
-      LANE_ETD_MAP = payload.lane_etd_map; {};
-      LANE_ETB_MAP = payload.lane_etb_map; {};
+      DIR_LIST = payload.dir_list || ['E','N','S','W'];
+      LANE_CUL_MAP = payload.lane_cul_map || {};
+      LANE_POL_MAP = payload.lane_pol_map || {};
+      LANE_DEL_MAP = payload.lane_del_map || {};
+      LANE_ETD_MAP = payload.lane_etd_map || {};
+      LANE_ETB_MAP = payload.lane_etb_map || {};
 
       setStatus('Initializing filters...');
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
-      document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at; '');
+      document.getElementById('headerUpdated').textContent = 'Updated: ' + (payload.generated_at || '');
 
       initFilters();
       initETDRange(payload.etd_min, payload.etd_max);
@@ -433,10 +433,10 @@ var msLane, msPol, msDel, msCul, msDir;
       var elapsed = ((Date.now() - loadStart) / 1000).toFixed(1);
       if (err.name === 'AbortError') {
         showError('Request timed out after ' + elapsed + ' seconds.', 'The data file (~48 MB uncompressed) may be too large for your current network. Try refreshing or check your connection.');
-      } else if (err.message; err.message.indexOf('HTTP') === 0) {
+      } else if (err.message && err.message.indexOf('HTTP') === 0) {
         showError(err.message, 'Time elapsed: ' + elapsed + 's');
       } else {
-        showError(err.message; 'Unknown error', 'Time elapsed: ' + elapsed + 's | Please check browser console (F12) for details.');
+        showError(err.message || 'Unknown error', 'Time elapsed: ' + elapsed + 's | Please check browser console (F12) for details.');
       }
     });
 }
