@@ -75,9 +75,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .summary-table .lane-row td{font-size:13px;color:#0f3460}
 .summary-table .lane-row .expand-icon{display:inline-block;width:16px;text-align:center;transition:transform .2s}
 .summary-table .lane-row.expanded .expand-icon{transform:rotate(90deg)}
-.summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px}
-.summary-table .detail-row td{padding-left:46px;font-size:12px;color:#555}
-.summary-table tr.detail-row.hidden{display:none}
+.summary-table .cul-row td{padding-left:28px;font-weight:600;font-size:12px;cursor:pointer}
+.summary-table .cul-row .expand-icon{display:inline-block;width:14px;text-align:center;transition:transform .2s;margin-right:2px;font-size:10px}
+.summary-table .cul-row.expanded .expand-icon{transform:rotate(90deg)}
+.summary-table .pol-row td{padding-left:46px;font-size:12px;color:#444;cursor:pointer}
+.summary-table .pol-row .expand-icon{display:inline-block;width:14px;text-align:center;transition:transform .2s;margin-right:2px;font-size:10px}
+.summary-table .pol-row.expanded .expand-icon{transform:rotate(90deg)}
+.summary-table .detail-row td{padding-left:64px;font-size:12px;color:#555}
+.summary-table tr.hidden{display:none}
 .summary-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .summary-table .highlight{color:#0f3460;font-weight:600}
 
@@ -217,9 +222,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="kpi-card"><div class="kpi-value" id="kpi40">0</div><div class="kpi-label">40ft</div></div>
     <div class="kpi-card accent"><div class="kpi-value" id="kpiTeu">0</div><div class="kpi-label">Total TEU</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpiBooking">0</div><div class="kpi-label">Booking Count</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpiWeight">0</div><div class="kpi-label">Container Weight</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpiWeight">0</div><div class="kpi-label">Weight (÷1000t)</div></div>
   </div>
-  <div id="debugPanel" style="display:none;background:#fff3cd;color:#856404;padding:8px 12px;border-radius:6px;margin:8px 0;font-size:12px;font-family:monospace;"></div>
 
   <!-- SUMMARY TABLE -->
   <div class="summary-section">
@@ -237,8 +241,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
           <th class="num" style="min-width:60px">40RF</th>
           <th class="num accent" style="min-width:60px">FEU</th>
           <th class="num">Sum of Booking</th>
-          <th class="num">Sum of Container Weight</th>
-          <th class="num">Avg Weight</th>
+          <th class="num">Weight (÷1000t)</th>
+          <th class="num">Avg Weight(t)</th>
         </tr>
       </thead><tbody></tbody></table>
     </div>
@@ -339,11 +343,8 @@ var msLane, msPol, msDel, msCul, msDir;
         if (bzcf.length > 0) {
           var bzcf20 = bzcf.reduce(function(s,r){return s+r.ft20},0);
           checkMsg += 'BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf20;
-          console.log('[Data Check] BZCF2621W: ' + bzcf.length + ' records, 20ft=' + bzcf20);
         }
       })();
-      var debugEl = document.getElementById('debugPanel');
-      if (debugEl) { debugEl.innerHTML = '<b>Data Check:</b> ' + checkMsg; debugEl.style.display = 'block'; }
 
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
@@ -364,7 +365,6 @@ var msLane, msPol, msDel, msCul, msDir;
       } else {
         showError(err.message, 'Time elapsed: ' + elapsed + 's | Please check browser console (F12) for details.');
       }
-      console.error('Data load error:', err);
     });
 })();
 
@@ -469,59 +469,19 @@ function getFilteredData() {
   var etbFrom = document.getElementById('etbFrom').value;
   var etbTo = document.getElementById('etbTo').value;
 
-  // Debug logging to console
-  console.log('=== Filter Debug ===');
-  console.log('laneSel size:', laneSel.size, 'sample:', Array.from(laneSel).slice(0,3));
-  console.log('culSel size:', culSel.size, 'sample:', Array.from(culSel).slice(0,3));
-  console.log('polSel size:', polSel.size, 'sample:', Array.from(polSel).slice(0,3));
-  console.log('delSel size:', delSel.size, 'sample:', Array.from(delSel).slice(0,3));
-  console.log('dirSel size:', dirSel.size, 'sample:', Array.from(dirSel).slice(0,4));
-  console.log('etdFrom:', etdFrom, 'etdTo:', etdTo);
-  console.log('etbFrom:', etbFrom, 'etbTo:', etbTo);
-  console.log('Total ALL_DATA:', ALL_DATA.length);
-
-  var lanePass = 0, culPass = 0, polPass = 0, delPass = 0, dirPass = 0, etdPass = 0, etaPass = 0, totalPass = 0;
-  // BZCF2621W specific debug
-  var bzcfLost = {lane:0, pol:0, del:0, cul:0, dir:0, etd:0, etb:0, pass:0};
-  var result = ALL_DATA.filter(function(r) {
-    var isBzcf = (r.cul_code === 'BZCF2621W');
-    if (!laneSel.has(r.lane)) { if (isBzcf) bzcfLost.lane++; return false; } else { lanePass++; }
-    if (!polSel.has(r.pol)) { if (isBzcf) bzcfLost.pol++; return false; } else { polPass++; }
-    if (!delSel.has(r.del_port)) { if (isBzcf) bzcfLost.del++; return false; } else { delPass++; }
-    if (!culSel.has(r.cul_code)) { if (isBzcf) bzcfLost.cul++; return false; } else { culPass++; }
+  return ALL_DATA.filter(function(r) {
+    if (!laneSel.has(r.lane)) return false;
+    if (!polSel.has(r.pol)) return false;
+    if (!delSel.has(r.del_port)) return false;
+    if (!culSel.has(r.cul_code)) return false;
     var recDir = r.direction || '';
-    if (recDir && !dirSel.has(recDir)) { if (isBzcf) bzcfLost.dir++; return false; } else { dirPass++; }
-    if (etdFrom && r.etd && r.etd < etdFrom) { if (isBzcf) bzcfLost.etd++; return false; } else { etdPass++; }
-    if (etdTo && r.etd && r.etd > etdTo) { if (isBzcf) bzcfLost.etd++; return false; }
-    if (etbFrom && r.etb && r.etb < etbFrom) { if (isBzcf) bzcfLost.eta++; return false; } else { etaPass++; }
-    if (etbTo && r.etb && r.etb > etbTo) { if (isBzcf) bzcfLost.eta++; return false; }
-    if (isBzcf) bzcfLost.pass++;
-    totalPass++;
+    if (recDir && !dirSel.has(recDir)) return false;
+    if (etdFrom && r.etd && r.etd < etdFrom) return false;
+    if (etdTo && r.etd && r.etd > etdTo) return false;
+    if (etbFrom && r.etb && r.etb < etbFrom) return false;
+    if (etbTo && r.etb && r.etb > etbTo) return false;
     return true;
   });
-  if (bzcfLost.pass > 0 || bzcfLost.lane > 0 || bzcfLost.pol > 0 || bzcfLost.del > 0 || bzcfLost.dir > 0 || bzcfLost.etd > 0 || bzcfLost.eta > 0) {
-    console.log('[BZCF2621W] Total in raw:', ALL_DATA.filter(function(r){return r.cul_code==='BZCF2621W'}).length);
-    console.log('[BZCF2621W] Filtered: lane=', bzcfLost.lane, 'pol=', bzcfLost.pol, 'del=', bzcfLost.del, 'cul=', bzcfLost.cul, 'dir=', bzcfLost.dir, 'etd=', bzcfLost.etd, 'eta=', bzcfLost.eta, 'PASS=', bzcfLost.pass);
-  }
-
-  console.log('After lane filter:', lanePass);
-  console.log('After pol filter:', polPass);
-  console.log('After del filter:', delPass);
-  console.log('After cul filter:', culPass);
-  console.log('After dir filter:', dirPass);
-  console.log('After etd filter:', etdPass);
-  console.log('After eta filter:', etaPass);
-  console.log('Final result:', totalPass);
-  console.log('====================');
-
-  // Inline debug panel update
-  var debugEl = document.getElementById('debugPanel');
-  if (debugEl) {
-    debugEl.innerHTML = '<b>Debug:</b> lane=' + lanePass + ' pol=' + polPass + ' del=' + delPass + ' cul=' + culPass + ' dir=' + dirPass + ' etd=' + etdPass + ' eta=' + etaPass + ' <b style="color:#0f3460">final=' + totalPass + '</b>';
-    debugEl.style.display = 'block';
-  }
-
-  return result;
 }
 
 // ============ INIT ============
@@ -649,27 +609,35 @@ function updateKPIs(data) {
   document.getElementById('kpiTeu').textContent = tteu.toLocaleString();
   document.getElementById('kpiBooking').textContent = data.length.toLocaleString();
   var tw = data.reduce(function(s,r){return s+r.container_weight},0);
-  document.getElementById('kpiWeight').textContent = tw.toLocaleString();
+  document.getElementById('kpiWeight').textContent = (tw/1000).toFixed(1);
 }
 
 // ============ SUMMARY TABLE ============
 function buildSummary(data) {
+  // 4-level: lane > cul > pol > del
   var groups = {};
   data.forEach(function(r) {
     var lk = r.lane || '(blank)';
     var ck = r.cul_code || '(blank)';
-    var comboKey = r.pol + '|||' + r.del_port;
+    var pk = r.pol || '(blank)';
+    var dk = r.del_port || '(blank)';
     if (!groups[lk]) groups[lk] = {};
     if (!groups[lk][ck]) groups[lk][ck] = {};
-    if (!groups[lk][ck][comboKey]) {
-      groups[lk][ck][comboKey] = { pol: r.pol, del: r.del_port, eta: r.etb || '', booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
+    if (!groups[lk][ck][pk]) groups[lk][ck][pk] = { pol: r.pol, etbList: [], delRows: {} };
+    if (!groups[lk][ck][pk].delRows[dk]) {
+      groups[lk][ck][pk].delRows[dk] = { del: r.del_port, booking_sum: 0, weight_sum: 0, ft20_sum: 0, ft40_sum: 0, ft40rf_sum: 0 };
     }
-    groups[lk][ck][comboKey].booking_sum += r.booking_cnt;
-    groups[lk][ck][comboKey].weight_sum += r.container_weight;
-    groups[lk][ck][comboKey].ft20_sum += r.ft20;
-    groups[lk][ck][comboKey].ft40_sum += r.ft40;
-    groups[lk][ck][comboKey].ft40rf_sum += r.ft40rf;
+    var d = groups[lk][ck][pk].delRows[dk];
+    d.booking_sum += r.booking_cnt;
+    d.weight_sum += r.container_weight;
+    d.ft20_sum += r.ft20;
+    d.ft40_sum += r.ft40;
+    d.ft40rf_sum += r.ft40rf;
+    if (r.etb) groups[lk][ck][pk].etbList.push(r.etb);
   });
+
+  function fmtW(w) { return (w/1000).toFixed(1); }
+  function fmtAvg(w, n) { return n > 0 ? (w/n).toFixed(1) : '0'; }
 
   var tbody = '';
   var totalRows = 0;
@@ -678,72 +646,107 @@ function buildSummary(data) {
     var laneBooking = 0, laneWeight = 0, laneFT20 = 0, laneFT40 = 0, laneFT40RF = 0;
     var culCodes = Object.keys(groups[lane]).sort();
     culCodes.forEach(function(ck) {
-      var combos = Object.values(groups[lane][ck]);
-      laneBooking += combos.reduce(function(s,v){return s+v.booking_sum},0);
-      laneWeight += combos.reduce(function(s,v){return s+v.weight_sum},0);
-      laneFT20 += combos.reduce(function(s,v){return s+v.ft20_sum},0);
-      laneFT40 += combos.reduce(function(s,v){return s+v.ft40_sum},0);
-      laneFT40RF += combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
+      Object.values(groups[lane][ck]).forEach(function(pg) {
+        Object.values(pg.delRows).forEach(function(d) {
+          laneBooking += d.booking_sum;
+          laneWeight += d.weight_sum;
+          laneFT20 += d.ft20_sum;
+          laneFT40 += d.ft40_sum;
+          laneFT40RF += d.ft40rf_sum;
+        });
+      });
     });
-
     var laneFEU = laneFT40 + laneFT40RF;
+    var lk = escapeHtml(lane);
 
-    tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + escapeHtml(lane) + '">';
-    tbody += '<td><span class="expand-icon">▶</span> <b>' + escapeHtml(lane) + '</b></td>';
-    tbody += '<td></td><td></td><td></td><td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
+    tbody += '<tr class="lane-row" onclick="toggleLane(this)" data-lane="' + lk + '">';
+    tbody += '<td><span class="expand-icon">&#9654;</span> <b>' + lk + '</b></td>';
+    tbody += '<td></td><td></td><td></td><td></td>';
+    tbody += '<td class="num highlight">' + laneFT20.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneFT40RF.toLocaleString() + '</td>';
     tbody += '<td class="num highlight accent">' + laneFEU.toLocaleString() + '</td>';
     tbody += '<td class="num highlight">' + laneBooking.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + laneWeight.toLocaleString() + '</td>';
-    tbody += '<td class="num highlight">' + (laneBooking > 0 ? Math.round(laneWeight/laneBooking).toLocaleString() : '0') + '</td>';
+    tbody += '<td class="num highlight">' + fmtW(laneWeight) + '</td>';
+    tbody += '<td class="num highlight">' + fmtAvg(laneWeight, laneBooking) + '</td>';
     tbody += '</tr>';
 
     culCodes.forEach(function(ck) {
-      var combos = Object.values(groups[lane][ck]).sort(function(a,b){ return a.pol.localeCompare(b.pol); });
-      var culBooking = combos.reduce(function(s,v){return s+v.booking_sum},0);
-      var culWeight = combos.reduce(function(s,v){return s+v.weight_sum},0);
-      var culFT20 = combos.reduce(function(s,v){return s+v.ft20_sum},0);
-      var culFT40 = combos.reduce(function(s,v){return s+v.ft40_sum},0);
-      var culFT40RF = combos.reduce(function(s,v){return s+v.ft40rf_sum},0);
+      var pgs = Object.values(groups[lane][ck]).sort(function(a,b){
+        var ea = a.etbList.length ? a.etbList.slice().sort()[0] : '';
+        var eb = b.etbList.length ? b.etbList.slice().sort()[0] : '';
+        return ea.localeCompare(eb);
+      });
+      var culBooking = 0, culWeight = 0, culFT20 = 0, culFT40 = 0, culFT40RF = 0;
+      pgs.forEach(function(pg) {
+        Object.values(pg.delRows).forEach(function(d) {
+          culBooking += d.booking_sum; culWeight += d.weight_sum;
+          culFT20 += d.ft20_sum; culFT40 += d.ft40_sum; culFT40RF += d.ft40rf_sum;
+        });
+      });
       var culFEU = culFT40 + culFT40RF;
+      var ck_esc = escapeHtml(ck);
 
-      tbody += '<tr class="cul-row hidden" data-parent="' + escapeHtml(lane) + '">';
-      tbody += '<td></td><td><b>' + escapeHtml(ck) + '</b></td>';
-      tbody += '<td></td><td></td>';
+      tbody += '<tr class="cul-row hidden" onclick="toggleCul(this)" data-lane="' + lk + '" data-cul="' + ck_esc + '">';
+      tbody += '<td></td><td><span class="expand-icon">&#9654;</span> <b>' + ck_esc + '</b></td>';
+      tbody += '<td></td><td></td><td></td>';
       tbody += '<td class="num">' + culFT20.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culFT40RF.toLocaleString() + '</td>';
       tbody += '<td class="num accent">' + culFEU.toLocaleString() + '</td>';
       tbody += '<td class="num">' + culBooking.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + culWeight.toLocaleString() + '</td>';
-      tbody += '<td class="num">' + (culBooking > 0 ? Math.round(culWeight/culBooking).toLocaleString() : '0') + '</td>';
+      tbody += '<td class="num">' + fmtW(culWeight) + '</td>';
+      tbody += '<td class="num">' + fmtAvg(culWeight, culBooking) + '</td>';
       tbody += '</tr>';
       totalRows++;
 
-      combos.forEach(function(c) {
-        var cFEU = c.ft40_sum + c.ft40rf_sum;
-        tbody += '<tr class="detail-row hidden" data-parent="' + escapeHtml(lane) + '">';
+      pgs.forEach(function(pg) {
+        var polBooking = 0, polWeight = 0, polFT20 = 0, polFT40 = 0, polFT40RF = 0;
+        Object.values(pg.delRows).forEach(function(d) {
+          polBooking += d.booking_sum; polWeight += d.weight_sum;
+          polFT20 += d.ft20_sum; polFT40 += d.ft40_sum; polFT40RF += d.ft40rf_sum;
+        });
+        var polFEU = polFT40 + polFT40RF;
+        var pk_esc = escapeHtml(pg.pol);
+        var polETB = pg.etbList.length ? pg.etbList.slice().sort()[0] : '-';
+
+        tbody += '<tr class="pol-row hidden" onclick="togglePol(this)" data-lane="' + lk + '" data-cul="' + ck_esc + '" data-pol="' + pk_esc + '">';
         tbody += '<td></td><td></td>';
-        tbody += '<td>' + escapeHtml(c.pol) + '</td>';
-        tbody += '<td>' + escapeHtml(c.del) + '</td>';
-        tbody += '<td>' + (c.etb || '-') + '</td>';
-        tbody += '<td class="num">' + c.ft20_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.ft40_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.ft40rf_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num accent">' + cFEU.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.booking_sum.toLocaleString() + '</td>';
-        tbody += '<td class="num">' + c.weight_sum.toLocaleString() + '</td>';
-        var avg = c.booking_sum > 0 ? Math.round(c.weight_sum / c.booking_sum) : 0;
-        tbody += '<td class="num">' + avg.toLocaleString() + '</td>';
+        tbody += '<td><span class="expand-icon">&#9654;</span> ' + pk_esc + '</td>';
+        tbody += '<td></td><td>' + escapeHtml(polETB) + '</td>';
+        tbody += '<td class="num">' + polFT20.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polFT40.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polFT40RF.toLocaleString() + '</td>';
+        tbody += '<td class="num accent">' + polFEU.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + polBooking.toLocaleString() + '</td>';
+        tbody += '<td class="num">' + fmtW(polWeight) + '</td>';
+        tbody += '<td class="num">' + fmtAvg(polWeight, polBooking) + '</td>';
         tbody += '</tr>';
         totalRows++;
+
+        var dels = Object.values(pg.delRows).sort(function(a,b){ return a.del.localeCompare(b.del); });
+        dels.forEach(function(d) {
+          var dFEU = d.ft40_sum + d.ft40rf_sum;
+          tbody += '<tr class="detail-row hidden" data-lane="' + lk + '" data-cul="' + ck_esc + '" data-pol="' + pk_esc + '">';
+          tbody += '<td></td><td></td><td></td>';
+          tbody += '<td>' + escapeHtml(d.del) + '</td>';
+          tbody += '<td></td>';
+          tbody += '<td class="num">' + d.ft20_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.ft40_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.ft40rf_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num accent">' + dFEU.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + d.booking_sum.toLocaleString() + '</td>';
+          tbody += '<td class="num">' + fmtW(d.weight_sum) + '</td>';
+          tbody += '<td class="num">' + fmtAvg(d.weight_sum, d.booking_sum) + '</td>';
+          tbody += '</tr>';
+          totalRows++;
+        });
       });
     });
   });
 
   if (totalRows === 0) {
-    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
+    document.getElementById('summaryTable').querySelector('tbody').innerHTML = '<tr><td colspan="13" style="text-align:center;padding:20px;color:#999">No data matches the selected filters.<br>Try adjusting Lane or ETD range.</td></tr>';
   } else {
     document.getElementById('summaryTable').querySelector('tbody').innerHTML = tbody;
   }
@@ -752,10 +755,46 @@ function buildSummary(data) {
 
 function toggleLane(row) {
   row.classList.toggle('expanded');
-  row.classList.toggle('collapsed', !row.classList.contains('expanded'));
   var lane = row.dataset.lane;
   var visible = row.classList.contains('expanded');
-  document.querySelectorAll('[data-parent="' + lane + '"]').forEach(function(r) {
+  // Show/hide CUL rows under this lane
+  document.querySelectorAll('[data-lane="' + lane + '"].cul-row').forEach(function(r) {
+    r.classList.toggle('hidden', !visible);
+  });
+  if (!visible) {
+    // Collapse all children
+    document.querySelectorAll('[data-lane="' + lane + '"]').forEach(function(r) {
+      r.classList.remove('expanded');
+      if (!r.classList.contains('lane-row')) r.classList.add('hidden');
+    });
+  }
+}
+
+function toggleCul(row) {
+  row.classList.toggle('expanded');
+  var lane = row.dataset.lane;
+  var cul = row.dataset.cul;
+  var visible = row.classList.contains('expanded');
+  // Show/hide POL rows under this CUL
+  document.querySelectorAll('[data-lane="' + lane + '"][data-cul="' + cul + '"].pol-row').forEach(function(r) {
+    r.classList.toggle('hidden', !visible);
+  });
+  if (!visible) {
+    document.querySelectorAll('[data-lane="' + lane + '"][data-cul="' + cul + '"]').forEach(function(r) {
+      r.classList.remove('expanded');
+      if (!r.classList.contains('cul-row')) r.classList.add('hidden');
+    });
+  }
+}
+
+function togglePol(row) {
+  row.classList.toggle('expanded');
+  var lane = row.dataset.lane;
+  var cul = row.dataset.cul;
+  var pol = row.dataset.pol;
+  var visible = row.classList.contains('expanded');
+  // Show/hide detail rows under this POL
+  document.querySelectorAll('[data-lane="' + lane + '"][data-cul="' + cul + '"][data-pol="' + pol + '"].detail-row').forEach(function(r) {
     r.classList.toggle('hidden', !visible);
   });
 }
@@ -804,7 +843,7 @@ function updateCharts(data) {
   var ctxDelVol = document.getElementById('chartDelVol').getContext('2d');
   if (chartDelVolInst) chartDelVolInst.destroy();
   chartDelVolInst = new Chart(ctxDelVol, {
-    type: 'bar', data: { labels: delVolEntries.map(function(e){return e[0]}), datasets: [{ label: 'Weight', data: delVolEntries.map(function(e){return e[1]}), backgroundColor: '#27ae60', borderRadius: 4 }] },
+    type: 'bar', data: { labels: delVolEntries.map(function(e){return e[0]}), datasets: [{ label: 'Weight (÷1000t)', data: delVolEntries.map(function(e){return e[1]}), backgroundColor: '#27ae60', borderRadius: 4 }] },
     options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v){ return v.toLocaleString(); } } } } }
   });
 }
@@ -838,7 +877,7 @@ function updateDetail(data) {
       '<td class="num">' + r.ft40 + '</td>' +
       '<td class="num"><b>' + r.teu + '</b></td>' +
       '<td class="num">' + r.booking_cnt + '</td>' +
-      '<td class="num">' + r.container_weight.toLocaleString() + '</td>' +
+      '<td class="num">' + (r.container_weight/1000).toFixed(1) + '</td>' +
       '<td>' + escapeHtml(r.shipper) + '</td>' +
       '<td>' + escapeHtml(r.forwarder) + '</td>' +
       '</tr>';
@@ -912,7 +951,7 @@ function saveFilterState() {
       detailSearch: document.getElementById('detailSearch').value
     };
     localStorage.setItem('db_filter_state', JSON.stringify(state));
-  } catch(e) { console.warn('Failed to save filter state:', e); }
+  } catch(e) { }
 }
 
 function restoreFilterState() {
@@ -920,7 +959,6 @@ function restoreFilterState() {
     var raw = localStorage.getItem('db_filter_state');
     if (!raw) return false;
     var state = JSON.parse(raw);
-    console.log('[RESTORE] Saved state:', JSON.stringify(state).substring(0, 200));
 
     // Suppress ALL callbacks during restore
     window._isRestoring = true;
@@ -929,7 +967,6 @@ function restoreFilterState() {
     // Step 1: Restore Lane
     if (state.lane && state.lane.length && state.lane.length < LANE_LIST.length) {
       msLane.setSelected(state.lane);
-      console.log('[RESTORE] Lane set to:', state.lane);
     }
 
     // Step 2: Restore ETD & ETA
@@ -941,36 +978,28 @@ function restoreFilterState() {
     // Step 3: Manually set saved CUL/POL/DEL/DIR selections BEFORE cascade
     if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
       msCul.setSelected(state.cul);
-      console.log('[RESTORE] CUL set to:', state.cul.slice(0,5), '... total:', state.cul.length);
     }
     if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) {
       msPol.setSelected(state.pol);
-      console.log('[RESTORE] POL set to:', state.pol);
     }
     if (state.del && state.del.length && state.del.length < DEL_LIST.length) {
       msDel.setSelected(state.del);
-      console.log('[RESTORE] DEL set to:', state.del);
     }
     if (state.dir && state.dir.length && state.dir.length < DIR_LIST.length) {
       msDir.setSelected(state.dir);
-      console.log('[RESTORE] DIR set to:', state.dir);
     }
 
     // Step 4: Cascade updates pools - updateItems will KEEP valid selections
-    console.log('[RESTORE] Before cascade - POL selected:', Array.from(msPol.getSelected()).slice(0,5), 'DEL selected:', Array.from(msDel.getSelected()).slice(0,5));
     onLaneChange(msLane.getSelected());
-    console.log('[RESTORE] After cascade - POL selected:', Array.from(msPol.getSelected()).slice(0,5), 'DEL selected:', Array.from(msDel.getSelected()).slice(0,5));
 
     // Step 5: Re-apply saved selections after cascade (in case updateItems defaulted to all)
     if (state.pol && state.pol.length && state.pol.length < POL_LIST.length) {
       var polValid = state.pol.filter(function(v){ return msPol.getItems().indexOf(v) >= 0; });
       if (polValid.length > 0) { msPol.setSelected(polValid); }
-      console.log('[RESTORE] POL re-applied:', polValid.length, 'valid of', state.pol.length);
     }
     if (state.del && state.del.length && state.del.length < DEL_LIST.length) {
       var delValid = state.del.filter(function(v){ return msDel.getItems().indexOf(v) >= 0; });
       if (delValid.length > 0) { msDel.setSelected(delValid); }
-      console.log('[RESTORE] DEL re-applied:', delValid.length, 'valid of', state.del.length);
     }
     if (state.cul && state.cul.length && state.cul.length < CUL_LIST.length) {
       var culValid = state.cul.filter(function(v){ return msCul.getItems().indexOf(v) >= 0; });
@@ -986,7 +1015,7 @@ function restoreFilterState() {
 
     refreshAll();
     return true;
-  } catch(e) { console.warn('Failed to restore filter state:', e); return false; }
+  } catch(e) { return false; }
 }
 
 // ============ MAIN REFRESH ============
