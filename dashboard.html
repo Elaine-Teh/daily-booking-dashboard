@@ -948,60 +948,121 @@ function buildMultiSelect(id, items, onChange, label) {
 
 function getFilteredData() {
 
+
+
   var laneSel = msLane.getSelected();
+
+
 
   var polSel = msPol.getSelected();
 
+
+
   var delSel = msDel.getSelected();
+
+
 
   var culSel = msCul.getSelected();
 
+
+
   var dirSel = msDir.getSelected();
+
+
 
   var etdFrom = document.getElementById('etdFrom').value;
 
+
+
   var etdTo = document.getElementById('etdTo').value;
 
+
+
   var etbFrom = document.getElementById('etbFrom').value;
+
+
 
   var etbTo = document.getElementById('etbTo').value;
 
 
 
+
+
+
+
+    // POL ETB filter: a CUL is included ONLY if at least one of its POLs has an ETB in range
+  var validCulCodes = null;
+  if (etbFrom || etbTo) {
+    validCulCodes = new Set();
+    ALL_DATA.forEach(function(r) {
+      if (r.etb && (!etbFrom || r.etb >= etbFrom) && (!etbTo || r.etb <= etbTo)) {
+        validCulCodes.add(r.cul_code);
+      }
+    });
+  }
+
   return ALL_DATA.filter(function(r) {
+
+
 
     if (!laneSel.has(r.lane)) return false;
 
+
+
     if (!polSel.has(r.pol)) return false;
+
+
 
     if (!delSel.has(r.del_port)) return false;
 
+
+
     if (!culSel.has(r.cul_code)) return false;
+
+
 
     var recDir = r.direction || '';
 
+
+
     if (recDir && !dirSel.has(recDir)) return false;
+
+
 
     // SUL/CUL filter
 
+
+
     if (SUL_FILTER === 'sul' && r.sul_yn !== 'Y') return false;
+
+
 
     if (SUL_FILTER === 'cul' && r.sul_yn !== 'N') return false;
 
+
+
     if (etdFrom && r.etd && r.etd < etdFrom) return false;
+
+
 
     if (etdTo && r.etd && r.etd > etdTo) return false;
 
-    if (etbFrom && r.etb && r.etb < etbFrom) return false;
 
-    if (etbTo && r.etb && r.etb > etbTo) return false;
+
+    // CUL-level ETB filter: exclude CULs with no POL ETB in range
+    if (validCulCodes && !validCulCodes.has(r.cul_code)) return false;
+
+
 
     return true;
 
+
+
   });
 
-}
 
+
+}
 
 
 // ============ INIT ============
@@ -1028,86 +1089,172 @@ function initFilters() {
 
 function cascadeFilters() {
 
+
+
   var laneSel = msLane.getSelected();
+
+
 
   var etdFrom = document.getElementById('etdFrom').value;
 
+
+
   var etdTo = document.getElementById('etdTo').value;
+
+
 
   var etbFrom = document.getElementById('etbFrom').value;
 
+
+
   var etbTo = document.getElementById('etbTo').value;
+
+
 
   var allLanes = (laneSel.size === 0 || laneSel.size === LANE_LIST.length);
 
+
+
   var allETD = (!etdFrom && !etdTo);
+
+
 
   var allETA = (!etbFrom && !etbTo);
 
 
 
+
+
+
+
   // If both Lane, ETD, and ETA are "all", restore full lists and select all
+
+
 
   if (allLanes && allETD && allETA) {
 
+
+
     msCul.updateItems(CUL_LIST); msCul.setAll();
+
+
 
     msPol.updateItems(POL_LIST); msPol.setAll();
 
+
+
     msDel.updateItems(DEL_LIST); msDel.setAll();
+
+
 
     return;
 
+
+
   }
+
+
+
+
 
 
 
   // Filter ALL_DATA by current Lane + ETD selection
 
+
+
   var culPool = [], polPool = [], delPool = [];
+
+
 
   var culSet = {}, polSet = {}, delSet = {};
 
+
+
+    // CUL-level ETB filter: build valid CUL set for cascade
+  var cascadeValidCul = null;
+  if (etbFrom || etbTo) {
+    cascadeValidCul = new Set();
+    ALL_DATA.forEach(function(r) {
+      if (r.etb && (!etbFrom || r.etb >= etbFrom) && (!etbTo || r.etb <= etbTo)) {
+        cascadeValidCul.add(r.cul_code);
+      }
+    });
+  }
+
   ALL_DATA.forEach(function(r) {
+
+
 
     if (!allLanes && !laneSel.has(r.lane)) return;
 
+
+
     if (etdFrom && r.etd < etdFrom) return;
+
+
 
     if (etdTo && r.etd > etdTo) return;
 
-    if (etbFrom && r.etb && r.etb < etbFrom) return;
 
-    if (etbTo && r.etb && r.etb > etbTo) return;
+
+    if (cascadeValidCul && !cascadeValidCul.has(r.cul_code)) return;
+
+
 
     if (!culSet[r.cul_code]) { culSet[r.cul_code] = true; culPool.push(r.cul_code); }
 
+
+
     if (!polSet[r.pol]) { polSet[r.pol] = true; polPool.push(r.pol); }
+
+
 
     if (!delSet[r.del_port]) { delSet[r.del_port] = true; delPool.push(r.del_port); }
 
+
+
   });
+
+
 
   culPool.sort(); polPool.sort(); delPool.sort();
 
 
 
+
+
+
+
   msCul.updateItems(culPool);
+
+
 
   msPol.updateItems(polPool);
 
+
+
   msDel.updateItems(delPool);
+
+
 
   // During normal user interaction, reset to show all available options
 
+
+
   if (!window._isRestoring) {
+
+
 
     msCul.setAll(); msPol.setAll(); msDel.setAll();
 
+
+
   }
 
-}
 
+
+}
 
 
 function onLaneChange(selectedLanes) {
@@ -2003,7 +2150,6 @@ function buildSummary(data) {
 
 
 }
-
 
 
 
