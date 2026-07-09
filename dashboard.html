@@ -1732,7 +1732,7 @@ function buildSummary(data) {
 
 
 
-          childTbody += '<td class="num">' + culOpTeu.toLocaleString() + '</td>';
+          childTbody += '<td class="num">' + Math.min(culOpTeu, culBooking).toLocaleString() + '</td>';
 
 
 
@@ -1891,7 +1891,7 @@ function buildSummary(data) {
 
 
 
-            childTbody += '<td class="num">' + pg.opTeu.toLocaleString() + '</td>';
+            childTbody += '<td class="num">' + Math.min(pg.opTeu, polBooking).toLocaleString() + '</td>';
 
 
 
@@ -1994,7 +1994,7 @@ function buildSummary(data) {
 
 
 
-              childTbody += '<td class="num">' + d.op_teu_sum.toLocaleString() + '</td>';
+              childTbody += '<td class="num">' + Math.min(d.op_teu_sum, d.booking_sum).toLocaleString() + '</td>';
 
 
 
@@ -2087,7 +2087,7 @@ function buildSummary(data) {
 
 
 
-    laneRow += '<td class="num highlight">' + laneOpTeu.toLocaleString() + '</td>';
+    laneRow += '<td class="num highlight">' + Math.min(laneOpTeu, laneBooking).toLocaleString() + '</td>';
 
 
 
@@ -2150,7 +2150,6 @@ function buildSummary(data) {
 
 
 }
-
 
 
 function toggleLane(row) {
